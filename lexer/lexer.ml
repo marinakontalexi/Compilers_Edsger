@@ -1,4 +1,4 @@
-# 2 "lexer.mll"
+# 3 "lexer.mll"
   
     open Printf
     open Char
@@ -250,11 +250,11 @@ and __ocaml_lex_eds_lex_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
 let
-# 60 "lexer.mll"
+# 61 "lexer.mll"
                           id
 # 256 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 61 "lexer.mll"
+# 62 "lexer.mll"
         ( try
             (Hashtbl.find keyword_table id, id)
           with Not_found ->
@@ -263,86 +263,86 @@ let
 
   | 1 ->
 let
-# 65 "lexer.mll"
+# 66 "lexer.mll"
             const_int
 # 269 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 65 "lexer.mll"
+# 66 "lexer.mll"
                       ( (t_const_i, const_int) )
 # 273 "lexer.ml"
 
   | 2 ->
 let
-# 66 "lexer.mll"
+# 67 "lexer.mll"
                                                    const_f
 # 279 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 66 "lexer.mll"
+# 67 "lexer.mll"
                                                            ( (t_const_f, const_f) )
 # 283 "lexer.ml"
 
   | 3 ->
 let
-# 67 "lexer.mll"
+# 68 "lexer.mll"
                                      const_c
 # 289 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 67 "lexer.mll"
+# 68 "lexer.mll"
                                              ( (t_const_c, const_c) )
 # 293 "lexer.ml"
 
   | 4 ->
 let
-# 68 "lexer.mll"
+# 69 "lexer.mll"
                                       const_s
 # 299 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 68 "lexer.mll"
+# 69 "lexer.mll"
                                               ( (t_const_s, const_s) )
 # 303 "lexer.ml"
 
   | 5 ->
 let
-# 69 "lexer.mll"
+# 70 "lexer.mll"
                                               op2
 # 309 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos (lexbuf.Lexing.lex_start_pos + 2) in
-# 69 "lexer.mll"
+# 70 "lexer.mll"
                                                   ( (Hashtbl.find operator_table op2, op2) )
 # 313 "lexer.ml"
 
   | 6 ->
 let
-# 70 "lexer.mll"
+# 71 "lexer.mll"
                                                                                        op
 # 319 "lexer.ml"
 = Lexing.sub_lexeme_char lexbuf lexbuf.Lexing.lex_start_pos in
-# 70 "lexer.mll"
+# 71 "lexer.mll"
                                                                                           ( (code op, Char.escaped op) )
 # 323 "lexer.ml"
 
   | 7 ->
-# 71 "lexer.mll"
+# 72 "lexer.mll"
              ( incr line_number; eds_lex lexbuf)
 # 328 "lexer.ml"
 
   | 8 ->
-# 74 "lexer.mll"
+# 75 "lexer.mll"
                                                  ( eds_lex lexbuf )
 # 333 "lexer.ml"
 
   | 9 ->
-# 75 "lexer.mll"
+# 76 "lexer.mll"
           ( raise End_of_file )
 # 338 "lexer.ml"
 
   | 10 ->
 let
-# 76 "lexer.mll"
+# 77 "lexer.mll"
            c
 # 344 "lexer.ml"
 = Lexing.sub_lexeme_char lexbuf lexbuf.Lexing.lex_start_pos in
-# 77 "lexer.mll"
+# 78 "lexer.mll"
         ( printf "Unrecognized character: %c at line: %d\n" c !line_number;
           (-1, Char.escaped c)
         )
@@ -353,7 +353,7 @@ let
 
 ;;
 
-# 82 "lexer.mll"
+# 83 "lexer.mll"
  
     let rec parse lexbuf =
         let (token, s) = eds_lex lexbuf in
