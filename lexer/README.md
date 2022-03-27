@@ -4,6 +4,6 @@
 
 ocamllex lexer.mll
 
-ocamlopt -o lexer lexer.ml
+ocamlopt -o lexer lexer.ml 
 
 .\lexer.exe <filename>
