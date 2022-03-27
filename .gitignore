@@ -1,1 +1,8 @@
 tests/
+lexer
+lexer.cmi
+lexer.cmx
+lexer.exe
+lexer.ml
+lexer.o
+.vscode/
