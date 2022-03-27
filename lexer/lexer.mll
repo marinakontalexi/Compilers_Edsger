@@ -51,9 +51,9 @@
 let L = ['a'-'z' 'A'-'Z']
 let D = ['0'-'9']
 let W = [' ' '\t' '\r' '\n']
-let common_c = [^ ' ' ''' '"' '\\']
-let escape = ['\n' '\t' '\r' '\\' '\'' '\"'] | ['\x00'-'\xFF'] 
-
+let HEX = ['0'-'9' 'A'-'F']
+let common_c = [^ ' ' '\'' '\"' '\\']
+let escape = '\\' (['n' 't' 'r' '0' '\\' '\'' '"'] | 'x' HEX HEX)
 
 (* rules section *)
 
@@ -69,8 +69,9 @@ rule eds_lex = parse
     | '"' (common_c | escape)+ '"' as const_s { (t_const_s, const_s) }
     | ['=' '+' '-' '*' '/' '%' '>' '<']'=' as op2 { (Hashtbl.find operator_table op2, op2) }
     | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}'] as op { (code op, Char.escaped op) }
+    | ['\n'] { incr line_number; eds_lex lexbuf}
     | W+ 
-    | "//"[^'\n'] 
+    | "//"[^'\n']+ 
     | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf }
     | eof { raise End_of_file }
     | _ as c
