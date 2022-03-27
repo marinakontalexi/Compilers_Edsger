@@ -70,13 +70,19 @@ rule eds_lex = parse
     | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] as op { (code op, Char.escaped op) }
     | ['\n'] { incr line_number; eds_lex lexbuf}
     | W+ 
-    | "//"[^'\n']+ 
-    | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf }
+    | "//"[^'\n']+ {eds_lex lexbuf}
+    | "/*" {comment lexbuf}
+    (* | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf } *)
     | eof { raise End_of_file }
     | _ as c
         { printf "Unrecognized character: %c at line: %d\n" c !line_number;
           (-1, Char.escaped c)
         }
+    and comment = parse
+        | "*/" {eds_lex lexbuf}
+        | ['\n'] {incr line_number; comment lexbuf}
+        | "*" {comment lexbuf (* or NOTHING *)}
+        | _+ {comment lexbuf (* or NOTHING *)}
 
 (* trailer section *)
 {
