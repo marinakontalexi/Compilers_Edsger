@@ -1,5 +1,4 @@
 tests/
-lexer
 lexer.cmi
 lexer.cmx
 lexer.exe
