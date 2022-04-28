@@ -97,8 +97,10 @@ rule eds_lex = parse
     | D+ "." D+ (("e" | "E") ("+" | "-")?  D+)? as const_f { CONST_F (float_of_string const_f) }
     (* | ''' ((common_c | escape) as c) '''  { CONST_C c } *)
     | '"' (common_c | escape)+ '"' as const_s { CONST_S const_s }
-    | ['=' '!' '+' '-' '*' '/' '%' '>' '<']'=' | "++" | "--" | "&&" | "||" as op2 { Hashtbl.find operatoreq_table op2 }
-    | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] as op { Hashtbl.find operator_table op }
+    | ['=' '!' '+' '-' '*' '/' '%' '>' '<']'=' | "++" | "--" | "&&" | "||" 
+        as op2 { Hashtbl.find operatoreq_table op2 }
+    | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] 
+        as op { Hashtbl.find operator_table op }
     | ['\n'] { incr line_number; eds_lex lexbuf }
     | W+ 
     | "//"[^'\n']+ { eds_lex lexbuf }
