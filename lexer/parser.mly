@@ -5,13 +5,13 @@
     type declaration = Var_declaration of fulltype * declarator list
                      | Fun_declaration of fulltype * id * parameter list
                      | Fun_definition of fulltype * id * parameter list * declaration list * stmt list
-    type fulltype = Type of basic_type * pointer list
+    type fulltype = Type of basic_type * int (*pointer list if we use star*)
     type basic_type = Int | Char | Bool | Double | Void        (* basic+result type *)
-    type pointer = Star
+   (* type pointer = Star *)
     type declarator = Declarator of id * constant_expr option
     type parameter = Param of call * fulltype * id
     type call = None | Byref
-    type stmt = Empty
+    type stmt = Empty_stmt
               | Expression of expr
               | Stmt_block of stmt list
               | If of expr * stmt * stmt option
@@ -95,93 +95,97 @@
 %%
 
 /* grammar rules */
-program: declaration { }
-       | program declaration { }
+program: declaration { Program([$1]) }
+       | program declaration { append($2,$1) } /* need append function */
 ;
 
-declaration: variable_declaration { }
-           | function_declaration { }
-           | function_definition { }
+// program: declaration_list {Program(List.rev $1)}
+// ;
+
+// declaration_list: declaration { [$1] }
+//        | declaration_list declaration { $2::$1 }
+// ;
+
+declaration: variable_declaration { $1 }
+           | function_declaration { $1 }
+           | function_definition { $1 }
 ;
 
-variable_declaration: type declarator_list SEMICOLON { }
+variable_declaration: type declarator_list SEMICOLON { Var_declaration($1,$2) }
 ;
 
 declarator_list: declarator { }
                | declarator_list COMMA declarator { }
 ;
 
-type: basic_type pointer { }
+type: basic_type pointer { Type($1, $2) }
 ;
 
-basic_type: INT { }
-          | CHAR { }
-          | BOOL { }
-          | DOUBLE { }
+basic_type: INT { Int }
+          | CHAR { Char }
+          | BOOL { Bool }
+          | DOUBLE { Double }
 ;
 
-pointer: /* empty */ { }
-       | pointer TIMES { }
+pointer: /* empty */ { 0 }
+       | pointer TIMES { $1 + 1 }
 ;
 
-declarator: ID table { }
+declarator: ID table { Declarator(Id($1), $2) }
 ;
 
-table: /* empty */ { }
-     | L_BRACK constant_expression R_BRACK { }
+table: /* empty */ { None }
+     | L_BRACK constant_expression R_BRACK { $2 }
 ;
 
-function_declaration: result_type ID L_PAREN parameter_list R_PAREN SEMICOLON { }
+function_declaration: result_type ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration($1, Id($2), $4) }
 ;
 
-result_type: type { }
-           | VOID { }
+result_type: type { $1 }
+           | VOID { Type(Void, 0) }
 ;
 
 parameter_list: parameter { }
               | parameter_list COMMA parameter { }
 ;
 
-parameter: BYREF type ID { }
-         | type ID { }
+parameter: BYREF type ID { Param(Byref, $2, Id($3)) }
+         | type ID { Param(None, Id($2)) }
 ;
 
-function_definition: result_type ID L_PAREN parameter_list R_PAREN 
-                        L_BRACE declaration_list statement_list R_BRACE { }
+function_definition: result_type ID L_PAREN parameter_list R_PAREN   
+                        L_BRACE declaration_list statement_list R_BRACE { Fun_definition($1, Id($2), $4, List.rev $7, List.rev $8) }
 ;
 
-declaration_list: /* empty */ { }
-                | declaration_list declaration { }
+declaration_list: /* empty */ { [] }
+                | declaration_list declaration { $2::$1 }
 ;
 
-statement_list: /* empty */ { }
-              | statement_list statement { }
+statement_list: /* empty */ { [] }
+              | statement_list statement { $2::$1 }
 ;
 
-statement: SEMICOLON { }
-         | expression SEMICOLON { }
-         | L_BRACE statement_list R_BRACE { }   
-         | IF L_PAREN expression R_PAREN statement else_statement { }
-         | ID DDOT for_statement { }
-         | for_statement { }
-         | CONTINUE empty_id SEMICOLON { }
-         | BREAK empty_id SEMICOLON { }
-         | RETURN empty_expression SEMICOLON { }
+statement: SEMICOLON { Empty_stmt }
+         | expression SEMICOLON { Expression($1) }
+         | L_BRACE statement_list R_BRACE { Stmt_block(List.rev $2) }   
+         | IF L_PAREN expression R_PAREN statement else_statement { If($3, $5, $6) }
+         | ID DDOT FOR L_PAREN empty_expression SEMICOLON empty_expression SEMICOLON empty_expression R_PAREN statement { For(Some(Id($1)), $5, $7, $9, $11) }
+         | FOR L_PAREN empty_expression SEMICOLON empty_expression SEMICOLON empty_expression R_PAREN statement { For(None, $3, $5, $7, $9) }
+         | CONTINUE empty_id SEMICOLON { Continue($2) }
+         | BREAK empty_id SEMICOLON { Break($2) }
+         | RETURN empty_expression SEMICOLON { Return($2) }
 ;
 
-else_statement: /* empty */ { }
-              | ELSE statement { }
-;
-
-for_statement: FOR L_PAREN empty_expression SEMICOLON empty_expression SEMICOLON empty_expression R_PAREN statement { }
+else_statement: /* empty */ { None }
+              | ELSE statement { Some($2) }
 ;
 
 empty_expression: /* empty */ { }
               | expression { }
 ;
 
-empty_id: /* empty */ { }
-        | ID { }
+empty_id: /* empty */ { None }
+        | ID { Some(Id($1)) }
 ;
 
 expression: ID id_expr { }             /* <I> , function call */
