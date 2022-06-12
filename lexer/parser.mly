@@ -4,11 +4,11 @@
     type program = Program of declaration list
     type declaration = Var_declaration of fulltype * declarator list
                      | Fun_declaration of fulltype * id * parameter list
-                     | Fun_definition of fulltype * id * parameter list * declaration list * statement list
+                     | Fun_definition of fulltype * id * parameter list * declaration list * stmt list
     type fulltype = Type of basic_type * pointer list
-    type basic_type = Int | Char | Bool | Double | Void
+    type basic_type = Int | Char | Bool | Double | Void        (* basic+result type *)
     type pointer = Star
-    type declarator = Declarator of id * constant_expr 
+    type declarator = Declarator of id * constant_expr option
     type parameter = Param of call * fulltype * id
     type call = None | Byref
     type stmt = Empty
@@ -19,13 +19,32 @@
               | Continue of id option
               | Break of id option
               | Return of expr option
-    type expr = Fun_call of id * expr list
+    type expr = Id of id
+              | True | False | NULL 
               | INT of int
               | CHAR of char
               | DOUBLE of float
               | STRING of string
+              | Fun_call of id * expr list
               | Table_call of expr * expr
-              | Un_assign of 
+              | Un_operation of un_op * expr
+              | Bin_operation of expr * bin_op * expr
+              | Un_assignment_left of un_assign * expr 
+              | Un_assignment_right of expr * un_assign
+              | Bin_assignment of expr * bin_assign * expr
+              | Typecast of fulltype * expr
+              | Question of expr * expr * expr
+              | New of fulltype * expr option
+              | Delete of expr
+    type constant_expr = Const_expr of expr
+    type id = Id of string
+    type un_op = AND | POINT | POS | NEG | EXC
+    type bin_op = TIMES | DIV | MOD | PLUS | MINUS 
+                | LESS | MORE | LEQ | GEQ | EQ | NEQ
+                | LOGICAL_AND | LOGICAL_OR | COMMA
+    type un_assign = INCR | DECR
+    type bin_assign = ASSIGN | TIMESEQ | DIVEQ | MODEQ | PLUSEQ | MINUSEQ
+
 %}
 
 /* declarations */
@@ -165,7 +184,7 @@ empty_id: /* empty */ { }
         | ID { }
 ;
 
-expression: ID id_expr { }
+expression: ID id_expr { }             /* <I> , function call */
           | L_PAREN expression R_PAREN { }
           | TRUE { }
           | FALSE { }
@@ -174,7 +193,7 @@ expression: ID id_expr { }
           | CONST_C { }
           | CONST_F { }
           | CONST_S { }
-          | expression L_BRACK expression R_BRACK { }
+          | expression L_BRACK expression R_BRACK { }   /* mono gia *id[expr]?? */
           | unary_expression { }
           | binary_expression { }
           | unary_assignment { }
