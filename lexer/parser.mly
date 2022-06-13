@@ -209,35 +209,35 @@ expression: ID { Id($1) }
           | DELETE expression { Delete($2) }
 ;
 
-brack_expr: /* empty */ { }
-          | L_BRACK expression R_BRACK { }
+brack_expr: /* empty */ { None }
+          | L_BRACK expression R_BRACK { $2 }
 ;
 
-empty_expr_list: /* empty */ { }
-               | expression_list { }
+empty_expr_list: /* empty */ { None }
+               | expression_list { List.rev $1 }
 ;
 
-expression_list: expression { }
-               | expression_list COMMA expression { }
+expression_list: expression { [$1] }
+               | expression_list COMMA expression { $3::$1 }
 ;
 
-constant_expression: expression { }
+constant_expression: expression { Const_expr($1) }
 ;
 
-unary_expression: AND expression { }
-                | TIMES expression %prec POINT { }
-                | PLUS expression %prec POS { }
-                | MINUS expression %prec NEG { }
-                | EXC expression { }
+unary_expression: AND expression { Un_operation(AND, $2) }
+                | TIMES expression %prec POINT { Un_operation(POINT, $2) }
+                | PLUS expression %prec POS { Un_operation(POS, $2) }
+                | MINUS expression %prec NEG { Un_operation(NEG, $2) }
+                | EXC expression { Un_operation(EXC, $2) }
 ;
 
-binary_expression: expression TIMES expression { } 
-                 | expression DIV expression { }
-                 | expression MOD expression { }
-                 | expression PLUS expression { }
-                 | expression MINUS expression { }
-                 | expression LESS expression { }
-                 | expression MORE expression { }
+binary_expression: expression TIMES expression { Bin_operation($1, TIMES, $3) } 
+                 | expression DIV expression { Bin_operation($1, DIV, $3) }
+                 | expression MOD expression { Bin_operation($1, MOD, $3) }
+                 | expression PLUS expression { Bin_operation($1, PLUS, $3)}
+                 | expression MINUS expression { Bin_operation($1, MINUS, $3) }
+                 | expression LESS expression { Bin_operation($1, LESS, $3)}
+                 | expression MORE expression { Bin_operation($1, MORE, $3)}
                  | expression LEQ expression { }
                  | expression GEQ expression { }
                  | expression EQ expression { }
