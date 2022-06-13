@@ -1,2 +1,2 @@
-"fgh
-j"
+int*** giorgos;
+bool* e;

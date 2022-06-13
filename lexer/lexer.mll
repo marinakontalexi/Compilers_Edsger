@@ -106,7 +106,7 @@ rule eds_lex = parse
     | "//"[^'\n']+ { eds_lex lexbuf }
     | "/*" { comment lexbuf }
     (* | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf } *)
-    | eof { raise End_of_file }
+    | eof { EOF }
     | _ as c
         { printf "Unrecognized character: %c at line: %d\n" c !line_number;
           CONST_C c

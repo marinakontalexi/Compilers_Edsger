@@ -1,50 +1,7 @@
 /* header */
 %{
     open Printf
-    type program = Program of declaration list
-    type declaration = Var_declaration of fulltype * declarator list
-                     | Fun_declaration of fulltype * id * parameter list
-                     | Fun_definition of fulltype * id * parameter list * declaration list * stmt list
-    type fulltype = Type of basic_type * int (*pointer list if we use star*)
-    type basic_type = Int | Char | Bool | Double | Void        (* basic+result type *)
-   (* type pointer = Star *)
-    type declarator = Declarator of id * constant_expr option
-    type parameter = Param of call * fulltype * id
-    type call = None | Byref
-    type stmt = Empty_stmt
-              | Expression of expr
-              | Stmt_block of stmt list
-              | If of expr * stmt * stmt option
-              | For of id option * expr option * expr option * expr option * stmt
-              | Continue of id option
-              | Break of id option
-              | Return of expr option
-    type expr = Id of id
-              | True | False | NULL 
-              | INT of int
-              | CHAR of char
-              | DOUBLE of float
-              | STRING of string
-              | Fun_call of id * expr list
-              | Table_call of expr * expr
-              | Un_operation of un_op * expr
-              | Bin_operation of expr * bin_op * expr
-              | Un_assignment_left of un_assign * expr 
-              | Un_assignment_right of expr * un_assign
-              | Bin_assignment of expr * bin_assign * expr
-              | Typecast of fulltype * expr
-              | Question of expr * expr * expr
-              | New of fulltype * expr option
-              | Delete of expr
-    type constant_expr = Const_expr of expr
-    type id = Id of string
-    type un_op = AND | POINT | POS | NEG | EXC
-    type bin_op = TIMES | DIV | MOD | PLUS | MINUS 
-                | LESS | MORE | LEQ | GEQ | EQ | NEQ
-                | LOGICAL_AND | LOGICAL_OR | COMMA
-    type un_assign = INCR | DECR
-    type bin_assign = ASSIGN | TIMESEQ | DIVEQ | MODEQ | PLUSEQ | MINUSEQ
-
+    open Ast
 %}
 
 /* declarations */
@@ -95,7 +52,7 @@
 %%
 
 /* grammar rules */
-program: declaration_list {Program(List.rev $1)}
+program: declaration_list EOF {syntaxTree := (List.rev $1); raise End_of_file }
 ;
 
 declaration_list: declaration { [$1] }
@@ -111,14 +68,14 @@ declaration: variable_declaration { $1 }
            | function_definition { $1 }
 ;
 
-variable_declaration: type declarator_list SEMICOLON { Var_declaration($1, List.rev $2) }
+variable_declaration: fulltype declarator_list SEMICOLON { Var_declaration($1, List.rev $2) }
 ;
 
 declarator_list: declarator { [$1] }
                | declarator_list COMMA declarator { $3::$1 }
 ;
 
-type: basic_type pointer { Type($1, $2) }
+fulltype: basic_type pointer { Type($1, $2) }
 ;
 
 basic_type: INT { Int }
@@ -135,13 +92,14 @@ declarator: ID table { Declarator(Id($1), $2) }
 ;
 
 table: /* empty */ { None }
-     | L_BRACK constant_expression R_BRACK { $2 }
+     | L_BRACK constant_expression R_BRACK { Some($2) }
 ;
+
 
 function_declaration: result_type ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration($1, Id($2), List.rev $4) }
 ;
 
-result_type: type { $1 }
+result_type: fulltype { $1 }
            | VOID { Type(Void, 0) }
 ;
 
@@ -149,8 +107,8 @@ parameter_list: parameter { [$1] }
               | parameter_list COMMA parameter { $3::$1 }
 ;
 
-parameter: BYREF type ID { Param(Byref, $2, Id($3)) }
-         | type ID { Param(None, Id($2)) }
+parameter: BYREF fulltype ID { Param(Byref, $2, Id($3)) }
+         | fulltype ID { Param(None, $1, Id($2)) }
 ;
 
 function_definition: result_type ID L_PAREN parameter_list R_PAREN   
@@ -203,9 +161,9 @@ expression: ID { Id($1) }
           | binary_expression { $1 }
           | unary_assignment { $1 }
           | binary_assignment { $1 }
-          | L_PAREN type R_PAREN expression %prec L_TYPE %prec R_TYPE{ Typecast($2, $4) }
+          | L_PAREN fulltype R_PAREN expression %prec L_TYPE { Typecast($2, $4) }
           | expression QUE expression DDOT expression { Question($1, $3, $5) }
-          | NEW type brack_expr { New($2, $3) }
+          | NEW fulltype brack_expr { New($2, $3) }
           | DELETE expression { Delete($2) }
 ;
 
@@ -238,13 +196,13 @@ binary_expression: expression TIMES expression { Bin_operation($1, TIMES, $3) }
                  | expression MINUS expression { Bin_operation($1, MINUS, $3) }
                  | expression LESS expression { Bin_operation($1, LESS, $3)}
                  | expression MORE expression { Bin_operation($1, MORE, $3)}
-                 | expression LEQ expression { Bin_operation($1, LEQ, $2)}
-                 | expression GEQ expression { Bin_operation($1, GEQ, $2)}
-                 | expression EQ expression { Bin_operation($1, EQ, $2)}
-                 | expression NEQ expression { Bin_operation($1, NEQ, $2) }
-                 | expression LOGICAL_AND expression { Bin_operation($1, LOGICAL_AND, $2) }
-                 | expression LOGICAL_OR expression { Bin_operation($1, LOGICAL_OR, $2) }
-                 | expression COMMA expression { Bin_operation($1, COMMA, $2)}
+                 | expression LEQ expression { Bin_operation($1, LEQ, $3)}
+                 | expression GEQ expression { Bin_operation($1, GEQ, $3)}
+                 | expression EQ expression { Bin_operation($1, EQ, $3)}
+                 | expression NEQ expression { Bin_operation($1, NEQ, $3) }
+                 | expression LOGICAL_AND expression { Bin_operation($1, LOGICAL_AND, $3) }
+                 | expression LOGICAL_OR expression { Bin_operation($1, LOGICAL_OR, $3) }
+                 | expression COMMA expression { Bin_operation($1, COMMA, $3)}
 ;
 
 unary_assignment: expression INCR { Un_assignment_right($1, INCR) }
