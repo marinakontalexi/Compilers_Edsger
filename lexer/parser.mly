@@ -188,28 +188,25 @@ empty_id: /* empty */ { None }
         | ID { Some(Id($1)) }
 ;
 
-expression: ID id_expr { }             /* <I> , function call */
-          | L_PAREN expression R_PAREN { }
-          | TRUE { }
-          | FALSE { }
-          | NULL { }
-          | CONST_I { }
-          | CONST_C { }
-          | CONST_F { }
-          | CONST_S { }
-          | expression L_BRACK expression R_BRACK { }   /* mono gia *id[expr]?? */
-          | unary_expression { }
-          | binary_expression { }
-          | unary_assignment { }
-          | binary_assignment { }
-          | L_PAREN type R_PAREN expression %prec L_TYPE %prec R_TYPE{ }
-          | expression QUE expression DDOT expression { }
-          | NEW type brack_expr { }
-          | DELETE expression { }
-;
-
-id_expr: /* empty */ { }
-       | L_PAREN empty_expr_list R_PAREN { }
+expression: ID { Id($1) }             
+          | L_PAREN expression R_PAREN { $2 }
+          | TRUE { True }
+          | FALSE { False }
+          | NULL { NULL }
+          | CONST_I { INT($1) }
+          | CONST_C { CHAR($1) }
+          | CONST_F { FLOAT($1) }
+          | CONST_S { STRING($1) }
+          | ID L_PAREN empty_expr_list R_PAREN { Fun_call(Id($1), $3) }
+          | expression L_BRACK expression R_BRACK { Table_call($1, $3) }   /* mono gia *id[expr]?? */
+          | unary_expression { $1 }
+          | binary_expression { $1 }
+          | unary_assignment { $1 }
+          | binary_assignment { $1 }
+          | L_PAREN type R_PAREN expression %prec L_TYPE %prec R_TYPE{ Typecast($2, $4) }
+          | expression QUE expression DDOT expression { Question($1, $3, $5) }
+          | NEW type brack_expr { New($2, $3) }
+          | DELETE expression { Delete($2) }
 ;
 
 brack_expr: /* empty */ { }
