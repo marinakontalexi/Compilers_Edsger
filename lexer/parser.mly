@@ -95,15 +95,15 @@
 %%
 
 /* grammar rules */
-program: declaration { Program([$1]) }
-       | program declaration { append($2,$1) } /* need append function */
+program: declaration_list {Program(List.rev $1)}
 ;
 
-// program: declaration_list {Program(List.rev $1)}
-// ;
+declaration_list: declaration { [$1] }
+       | declaration_list declaration { $2::$1 }
+;
 
-// declaration_list: declaration { [$1] }
-//        | declaration_list declaration { $2::$1 }
+// program: declaration { Program([$1]) }
+//        | program declaration { append($2,$1) } /* need append function */
 // ;
 
 declaration: variable_declaration { $1 }
@@ -111,11 +111,11 @@ declaration: variable_declaration { $1 }
            | function_definition { $1 }
 ;
 
-variable_declaration: type declarator_list SEMICOLON { Var_declaration($1,$2) }
+variable_declaration: type declarator_list SEMICOLON { Var_declaration($1, List.rev $2) }
 ;
 
-declarator_list: declarator { }
-               | declarator_list COMMA declarator { }
+declarator_list: declarator { [$1] }
+               | declarator_list COMMA declarator { $3::$1 }
 ;
 
 type: basic_type pointer { Type($1, $2) }
@@ -138,15 +138,15 @@ table: /* empty */ { None }
      | L_BRACK constant_expression R_BRACK { $2 }
 ;
 
-function_declaration: result_type ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration($1, Id($2), $4) }
+function_declaration: result_type ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration($1, Id($2), List.rev $4) }
 ;
 
 result_type: type { $1 }
            | VOID { Type(Void, 0) }
 ;
 
-parameter_list: parameter { }
-              | parameter_list COMMA parameter { }
+parameter_list: parameter { [$1] }
+              | parameter_list COMMA parameter { $3::$1 }
 ;
 
 parameter: BYREF type ID { Param(Byref, $2, Id($3)) }
@@ -180,8 +180,8 @@ else_statement: /* empty */ { None }
               | ELSE statement { Some($2) }
 ;
 
-empty_expression: /* empty */ { }
-              | expression { }
+empty_expression: /* empty */ { None }
+              | expression { Some($1) }
 ;
 
 empty_id: /* empty */ { None }
@@ -210,10 +210,10 @@ expression: ID { Id($1) }
 ;
 
 brack_expr: /* empty */ { None }
-          | L_BRACK expression R_BRACK { $2 }
+          | L_BRACK expression R_BRACK { Some($2) }
 ;
 
-empty_expr_list: /* empty */ { None }
+empty_expr_list: /* empty */ { [] }
                | expression_list { List.rev $1 }
 ;
 
@@ -238,27 +238,27 @@ binary_expression: expression TIMES expression { Bin_operation($1, TIMES, $3) }
                  | expression MINUS expression { Bin_operation($1, MINUS, $3) }
                  | expression LESS expression { Bin_operation($1, LESS, $3)}
                  | expression MORE expression { Bin_operation($1, MORE, $3)}
-                 | expression LEQ expression { }
-                 | expression GEQ expression { }
-                 | expression EQ expression { }
-                 | expression NEQ expression { }
-                 | expression LOGICAL_AND expression { }
-                 | expression LOGICAL_OR expression { }
-                 | expression COMMA expression { }
+                 | expression LEQ expression { Bin_operation($1, LEQ, $2)}
+                 | expression GEQ expression { Bin_operation($1, GEQ, $2)}
+                 | expression EQ expression { Bin_operation($1, EQ, $2)}
+                 | expression NEQ expression { Bin_operation($1, NEQ, $2) }
+                 | expression LOGICAL_AND expression { Bin_operation($1, LOGICAL_AND, $2) }
+                 | expression LOGICAL_OR expression { Bin_operation($1, LOGICAL_OR, $2) }
+                 | expression COMMA expression { Bin_operation($1, COMMA, $2)}
 ;
 
-unary_assignment: expression INCR { }
-                | expression DECR { }
-                | INCR expression %prec L_INCR { }
-                | DECR expression %prec L_DECR { }
+unary_assignment: expression INCR { Un_assignment_right($1, INCR) }
+                | expression DECR { Un_assignment_right($1, DECR) }
+                | INCR expression %prec L_INCR { Un_assignment_left(INCR, $2) }
+                | DECR expression %prec L_DECR { Un_assignment_left(DECR, $2) }
 ;
 
-binary_assignment: expression ASSIGN expression { }
-                 | expression TIMESEQ expression { }
-                 | expression DIVEQ expression { }
-                 | expression MODEQ expression { }
-                 | expression PLUSEQ expression { }
-                 | expression MINUSEQ expression { }
+binary_assignment: expression ASSIGN expression { Bin_assignment($1, ASSIGN, $3) }
+                 | expression TIMESEQ expression { Bin_assignment($1, TIMESEQ, $3) }
+                 | expression DIVEQ expression { Bin_assignment($1, DIVEQ, $3) }
+                 | expression MODEQ expression { Bin_assignment($1, MODEQ, $3) }
+                 | expression PLUSEQ expression { Bin_assignment($1, PLUSEQ, $3) }
+                 | expression MINUSEQ expression { Bin_assignment($1, MINUSEQ, $3) }
 ;
 
 %%
