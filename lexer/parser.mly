@@ -238,27 +238,27 @@ binary_expression: expression TIMES expression { }
                  | expression MINUS expression { }
                  | expression LESS expression { }
                  | expression MORE expression { }
-                 | expression LEQ expression { }
-                 | expression GEQ expression { }
-                 | expression EQ expression { }
-                 | expression NEQ expression { }
-                 | expression LOGICAL_AND expression { }
-                 | expression LOGICAL_OR expression { }
-                 | expression COMMA expression { }
+                 | expression LEQ expression { Bin_operation($1, LEQ, $2)}
+                 | expression GEQ expression { Bin_operation($1, GEQ, $2)}
+                 | expression EQ expression { Bin_operation($1, EQ, $2)}
+                 | expression NEQ expression { Bin_operation($1, NEQ, $2) }
+                 | expression LOGICAL_AND expression { Bin_operation($1, LOGICAL_AND, $2) }
+                 | expression LOGICAL_OR expression { Bin_operation($1, LOGICAL_OR, $2) }
+                 | expression COMMA expression { Bin_operation($1, COMMA, $2)}
 ;
 
-unary_assignment: expression INCR { }
-                | expression DECR { }
-                | INCR expression %prec L_INCR { }
-                | DECR expression %prec L_DECR { }
+unary_assignment: expression INCR { Un_assignment_right($1, INCR) }
+                | expression DECR { Un_assignment_right($1, DECR) }
+                | INCR expression %prec L_INCR { Un_assignment_left(INCR, $2) }
+                | DECR expression %prec L_DECR { Un_assignment_left(DECR, $2) }
 ;
 
-binary_assignment: expression ASSIGN expression { }
-                 | expression TIMESEQ expression { }
-                 | expression DIVEQ expression { }
-                 | expression MODEQ expression { }
-                 | expression PLUSEQ expression { }
-                 | expression MINUSEQ expression { }
+binary_assignment: expression ASSIGN expression { Bin_assignment($1, ASSIGN, $3) }
+                 | expression TIMESEQ expression { Bin_assignment($1, TIMESEQ, $3) }
+                 | expression DIVEQ expression { Bin_assignment($1, DIVEQ, $3) }
+                 | expression MODEQ expression { Bin_assignment($1, MODEQ, $3) }
+                 | expression PLUSEQ expression { Bin_assignment($1, PLUSEQ, $3) }
+                 | expression MINUSEQ expression { Bin_assignment($1, MINUSEQ, $3) }
 ;
 
 %%
