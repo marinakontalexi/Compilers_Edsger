@@ -1,2 +1,4 @@
-int*** giorgos;
-bool* e;
+void giorgos(int x) {
+d = a = new int * 2;
+}
+

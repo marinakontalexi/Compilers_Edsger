@@ -113,7 +113,7 @@ rule eds_lex = parse
         }
     and comment = parse 
     | "*/" { eds_lex lexbuf }
-    | '\n' { incr line_number; eds_lex lexbuf }
+    | '\n' { incr line_number; comment lexbuf }
     | _ { comment lexbuf }
 
 (* trailer section *)
