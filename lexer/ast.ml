@@ -233,11 +233,17 @@ and print_expr_list expr_list =
   | h::t -> print_expr h;
             print_expr_list t;
 
-and print_unOP op = print_endline("OPERATOR");
+and print_unOP op = 
+  match op with
+  | AND -> print_string(" & ")
+  | POINT -> print_string(" * ")
+  | POS -> print_string(" + ")
+  | NEG -> print_string(" - ")
+  | EXC -> print_string(" ! ")
 
-and print_binOP op = print_endline("OPERATOR");
-
-and print_unAssign op = print_endline("OPERATOR");
+and print_binOP op = 
+  match op with
+  | 
 
 and print_unAssign op = print_endline("OPERATOR");
 
