@@ -205,8 +205,8 @@ binary_expression: expression TIMES expression { Bin_operation($1, TIMES, $3) }
 
 unary_assignment: expression INCR { Un_assignment_right($1, INCR) }
                 | expression DECR { Un_assignment_right($1, DECR) }
-                | INCR expression %prec L_INCR { Un_assignment_left(INCR, $2) }
-                | DECR expression %prec L_DECR { Un_assignment_left(DECR, $2) }
+                | INCR expression %prec L_INCR { Un_assignment_left(L_INCR, $2) }
+                | DECR expression %prec L_DECR { Un_assignment_left(L_DECR, $2) }
 ;
 
 binary_assignment: expression ASSIGN expression { Bin_assignment($1, ASSIGN, $3) }
