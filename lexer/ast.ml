@@ -158,4 +158,87 @@ and print_expr_opt e =
     | None -> ()
     | Some(e) -> print_expr e
 
-and print_expr x = print_endline("expr list")
+and print_expr x = 
+  print_endline(" Expression {");
+  match x with
+  | Id(s) -> print_endline("String " ^ s); print_endline("}");
+  | True -> print_endline("True"); print_endline("}");
+  | False -> print_endline("Flase"); print_endline("}");
+  | NULL -> print_endline("NULL") ; print_endline("}");
+  | INT(i) -> print_endline("INT: " ^ string_of_int(i)); print_endline("}");
+  | CHAR(c) -> print_endline("CHAR: " ^ string_of_char(c)); print_endline("}");
+  | FLOAT(f) -> print_endline("FLOAT: " ^ string_of_float(f)); print_endline("}");
+  | STRING(s) -> print_endline("STRING: " ^ s); print_endline("}");
+  | Fun_call(id, expr_list) -> print_endline("Fun_call {");
+                               print_ident id;
+                               print_endline("Expression List {"); print_expr_list expr_list; print_endline("}");
+                               print_endline("}");
+                               print_endline("}");
+  | Table_call(e1, e2) -> print_endline("Table_call {");
+                          print_expr e1; 
+                          print_expr e2;
+                          print_endline("}"); 
+                          print_endline("}");
+  | Un_operation(unOp, e) -> print_endline("Un_operation {");
+                             print_unOP unOP;
+                             print_expr e; 
+                             print_endline("}");
+                             print_endline("}");
+  | Bin_operation(e1, binOP, e2) -> print_endline("Bin_operation {");
+                                    print_expr e1;
+                                    print_binOP binOP;
+                                    print_expr e2; 
+                                    print_endline("}");
+                                    print_endline("}");
+  | Un_assignment_left(unAssign, e) -> print_endline("Un_assignment_left {");
+                                       print_unAssign unAssign;
+                                       print_expr e; 
+                                       print_endline("}");
+                                       print_endline("}");
+  | Un_assignment_right(e, unAssign) -> print_endline("Un_assignment_right {");
+                                        print_expr e;
+                                        print_unAssign unAssign; 
+                                        print_endline("}");
+                                        print_endline("}");
+  | Bin_assignment(e1, binAssign, e2) -> print_endline("Bin_assignment {");
+                                         print_expr e1;
+                                         print_binAssign binAssign;
+                                         print_expr e2;
+                                         print_endline("}");
+                                         print_endline("}");
+  | Typecast(ft, e) -> print_endline("Typecast {");
+                       print_fulltype ft;
+                       print_expr e;
+                       print_endline("}");
+                       print_endline("}");
+  | Question(e1, e2, e3) -> print_endline("Question {");
+                            print_expr(e1);
+                            print_expr(e2);
+                            print_expr(e3);
+                            print_endline("}");
+                            print_endline("}");
+  | New(ft, e) -> print_endline("New {");
+                  print_fulltype ft;
+                  print_expr_opt e;
+                  print_endline("}");
+                  print_endline("}");
+  | Delete(e) -> print_endline("Delete {");
+                 print_expr e;
+                 print_endline("}");
+                 print_endline("}");
+
+and print_expr_list expr_list =
+  match expr_list with
+  | [] -> ()
+  | h::t -> print_expr h;
+            print_expr_list t;
+
+and print_unOP op = print_endline("OPERATOR");
+
+and print_binOP op = print_endline("OPERATOR");
+
+and print_unAssign op = print_endline("OPERATOR");
+
+and print_unAssign op = print_endline("OPERATOR");
+
+and print_binAssign op = print_endline("OPERATOR");
