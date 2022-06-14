@@ -2,7 +2,7 @@ type un_op = AND | POINT | POS | NEG | EXC
 type bin_op = TIMES | DIV | MOD | PLUS | MINUS 
             | LESS | MORE | LEQ | GEQ | EQ | NEQ
             | LOGICAL_AND | LOGICAL_OR | COMMA
-type un_assign = INCR | DECR
+type un_assign = INCR | DECR | L_INCR | L_DECR
 type bin_assign = ASSIGN | TIMESEQ | DIVEQ | MODEQ | PLUSEQ | MINUSEQ
 type id = Id of string
 type basic_type = Int | Char | Bool | Double | Void
@@ -237,6 +237,11 @@ and print_unOP op = print_endline("OPERATOR");
 
 and print_binOP op = print_endline("OPERATOR");
 
-and print_unAssign op = print_endline("OPERATOR");
+and print_unAssign op = 
+  match op with
+  | INCR -> print_string("++");
+  | DECR -> print_string("--");
+  | L_INCR -> print_string("left ++");
+  | L_DECR -> print_string("left --");
 
 and print_binAssign op = print_endline("OPERATOR");
