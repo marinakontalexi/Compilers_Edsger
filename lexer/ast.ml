@@ -243,6 +243,26 @@ and print_unOP op =
 
 and print_binOP op = 
   match op with
-  | 
+  | TIMES -> print_string(" * ")
+  | DIV -> print_string(" / ")
+  | MOD -> print_string(" % ")
+  | PLUS -> print_string(" + ")
+  | MINUS -> print_string(" - ")
+  | LESS -> print_string(" < ")
+  | MORE -> print_string(" > ")
+  | LEQ -> print_string(" <= ")
+  | GEQ -> print_string(" >= ")
+  | EQ -> print_string(" == ")
+  | NEQ -> print_string(" != ")
+  | LOGICAL_AND -> print_string(" && ")
+  | LOGICAL_OR -> print_string(" || ")
+  | COMMA -> print_string(" , ")
 
-and print_binAssign op = print_endline("OPERATOR");
+and print_binAssign op = 
+  match op with
+  | ASSIGN -> print_string(" = ")
+  | TIMESEQ -> print_string(" *= ")
+  | DIVEQ -> print_string(" /= ")
+  | MODEQ -> print_string(" %= ")
+  | PLUSEQ -> print_string(" += ")
+  | MINUSEQ -> print_string(" -= ")
