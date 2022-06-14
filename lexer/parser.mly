@@ -85,7 +85,7 @@ basic_type: INT { Int }
 ;
 
 pointer: /* empty */ { 0 }
-       | pointer TIMES { $1 + 1 }
+       | pointer TIMES %prec POINT { $1 + 1 }
 ;
 
 declarator: ID table { Declarator(Id($1), $2) }
@@ -95,15 +95,19 @@ table: /* empty */ { None }
      | L_BRACK constant_expression R_BRACK { Some($2) }
 ;
 
-
-function_declaration: result_type ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration($1, Id($2), List.rev $4) }
+function_declaration: fulltype ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration($1, Id($2), List.rev $4) }
+                    | VOID ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun_declaration(Type(Void, 0), Id($2), List.rev $4) }
 ;
 
-result_type: fulltype { $1 }
-           | VOID { Type(Void, 0) }
+function_definition: fulltype ID L_PAREN parameter_list R_PAREN  
+                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition($1, Id($2), $4, List.rev $7, List.rev $8) }
+                   | VOID ID L_PAREN parameter_list R_PAREN  
+                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition(Type(Void, 0), Id($2), $4, List.rev $7, List.rev $8) }
 ;
 
-parameter_list: parameter { [$1] }
+
+parameter_list: /* empty */ { [] }
+              | parameter { [$1] }
               | parameter_list COMMA parameter { $3::$1 }
 ;
 
@@ -111,12 +115,9 @@ parameter: BYREF fulltype ID { Param(Byref, $2, Id($3)) }
          | fulltype ID { Param(None, $1, Id($2)) }
 ;
 
-function_definition: result_type ID L_PAREN parameter_list R_PAREN   
-                        L_BRACE declaration_list statement_list R_BRACE { Fun_definition($1, Id($2), $4, List.rev $7, List.rev $8) }
-;
 
-declaration_list: /* empty */ { [] }
-                | declaration_list declaration { $2::$1 }
+declaration_list_empty: /* empty */ { [] }
+                       | declaration_list_empty declaration { $2::$1 }
 ;
 
 statement_list: /* empty */ { [] }
@@ -155,7 +156,7 @@ expression: ID { Id($1) }
           | CONST_C { CHAR($1) }
           | CONST_F { FLOAT($1) }
           | CONST_S { STRING($1) }
-          | ID L_PAREN empty_expr_list R_PAREN { Fun_call(Id($1), $3) }
+          | ID L_PAREN expression_list R_PAREN { Fun_call(Id($1), List.rev $3) }
           | expression L_BRACK expression R_BRACK { Table_call($1, $3) }   /* mono gia *id[expr]?? */
           | unary_expression { $1 }
           | binary_expression { $1 }
@@ -163,19 +164,16 @@ expression: ID { Id($1) }
           | binary_assignment { $1 }
           | L_PAREN fulltype R_PAREN expression %prec L_TYPE { Typecast($2, $4) }
           | expression QUE expression DDOT expression { Question($1, $3, $5) }
-          | NEW fulltype brack_expr { New($2, $3) }
+          | NEW fulltype { New($2, None) }
+          | NEW fulltype L_BRACK expression R_BRACK { New($2, Some($4)) }
           | DELETE expression { Delete($2) }
 ;
 
-brack_expr: /* empty */ { None }
-          | L_BRACK expression R_BRACK { Some($2) }
-;
+// brack_expr: /* empty */ { None }
+//           | L_BRACK expression R_BRACK { Some($2) }
+// ;
 
-empty_expr_list: /* empty */ { [] }
-               | expression_list { List.rev $1 }
-;
-
-expression_list: expression { [$1] }
+expression_list: /* empty */ { [] }
                | expression_list COMMA expression { $3::$1 }
 ;
 

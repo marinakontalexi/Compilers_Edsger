@@ -80,7 +80,7 @@ and print_declarator d =
   | [] -> ()
   | Declarator(ident, None)::t -> print_string("Declarator { ");
                                   print_ident ident; 
-                                  print_endline("g}");
+                                  print_endline("}");
                                   print_declarator t 
   | Declarator(ident, Some(Const_expr(e)))::t -> print_endline("Declarator {");
                                                  print_ident ident; 
@@ -166,7 +166,7 @@ and print_expr x =
   | False -> print_endline("Flase"); print_endline("}");
   | NULL -> print_endline("NULL") ; print_endline("}");
   | INT(i) -> print_endline("INT: " ^ string_of_int(i)); print_endline("}");
-  | CHAR(c) -> print_endline("CHAR: " ^ string_of_char(c)); print_endline("}");
+  | CHAR(c) -> print_endline("CHAR: " ^ (String.make 1 c)); print_endline("}");
   | FLOAT(f) -> print_endline("FLOAT: " ^ string_of_float(f)); print_endline("}");
   | STRING(s) -> print_endline("STRING: " ^ s); print_endline("}");
   | Fun_call(id, expr_list) -> print_endline("Fun_call {");
@@ -179,7 +179,7 @@ and print_expr x =
                           print_expr e2;
                           print_endline("}"); 
                           print_endline("}");
-  | Un_operation(unOp, e) -> print_endline("Un_operation {");
+  | Un_operation(unOP, e) -> print_endline("Un_operation {");
                              print_unOP unOP;
                              print_expr e; 
                              print_endline("}");
@@ -244,7 +244,5 @@ and print_unOP op =
 and print_binOP op = 
   match op with
   | 
-
-and print_unAssign op = print_endline("OPERATOR");
 
 and print_binAssign op = print_endline("OPERATOR");
