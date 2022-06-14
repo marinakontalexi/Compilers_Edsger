@@ -80,7 +80,7 @@ and print_declarator d =
   | [] -> ()
   | Declarator(ident, None)::t -> print_string("Declarator { ");
                                   print_ident ident; 
-                                  print_endline("}");
+                                  print_endline("g}");
                                   print_declarator t 
   | Declarator(ident, Some(Const_expr(e)))::t -> print_endline("Declarator {");
                                                  print_ident ident; 
@@ -104,6 +104,58 @@ and print_param p =
                                   print_endline(" )");
                                   print_param t;                        
 
-and print_stmt x = print_endline("stmt list");
+and print_stmt s = 
+  match s with
+  | [] -> ()
+  | Empty_stmt::t ->  print_endline("Empty Statement"); 
+                      print_stmt t;
+  | Expression(e)::t -> print_expr e; 
+                        print_stmt t;
+  | Stmt_block(sb)::t ->  print_endline("Statement block {"); 
+                          print_stmt sb; 
+                          print_endline("}");
+                          print_stmt t;
+  | If(e, s1, Some(s2))::t -> print_string("If Statement {\n If {\n"); print_expr e;
+                              print_string("}\n Then {\n"); print_stmt [s1];
+                              print_string("}\n Else {\n"); print_stmt [s2];
+                              print_endline("}\n}");
+                              print_stmt t;
+  | If(e, s1, None)::t -> print_string("If Statement\n If {\n"); print_expr e;
+                          print_string("}\n Then {\n"); print_stmt [s1];
+                          print_endline("}\n}");
+                          print_stmt t;
+  | For(None, e1, e2, e3, s)::t ->  print_endline("For Statement {"); 
+                                    print_expr_opt e1;
+                                    print_expr_opt e2;
+                                    print_expr_opt e3;
+                                    print_stmt [s];
+                                    print_endline("}");
+                                    print_stmt t;
+  | For(Some(ident), e1, e2, e3, s)::t ->   print_endline("For Statement {"); 
+                                            print_ident ident; print_endline("");
+                                            print_expr_opt e1;
+                                            print_expr_opt e2;
+                                            print_expr_opt e3;
+                                            print_stmt [s];
+                                            print_endline("}");
+                                            print_stmt t;
+  | Continue(None)::t ->  print_endline("Continue Statement {}");
+                          print_stmt t;
+  | Continue(Some(ident))::t -> print_string("Continue Statement {");
+                                print_ident ident; print_endline("}");
+                                print_stmt t;
+  | Break(None)::t -> print_endline("Break Statement {}");
+                      print_stmt t;
+  | Break(Some(ident))::t ->  print_string("Break Statement {");
+                              print_ident ident; print_endline("}");
+                              print_stmt t;
+  | Return(e)::t -> print_endline("Return Statement {");
+                  print_expr_opt e; print_endline("}");
+                  print_stmt t
+                              
+and print_expr_opt e =
+    match e with
+    | None -> ()
+    | Some(e) -> print_expr e
 
 and print_expr x = print_endline("expr list")
