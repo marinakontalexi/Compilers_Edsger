@@ -43,27 +43,67 @@ type program = declaration list
 
 let syntaxTree : program ref = ref []
 
-let rec print x = 
+let rec print x =            (* used for printing declaration lists *)
   match x with 
   | [] -> () (*print_endline("switch to c++")*)
   | h::t -> print_declaration h; print t
 
 and print_declaration x = 
   match x with
-  | Var_declaration(ft, decl_list) -> print_endline("Variable Declaration{"); print_fulltype ft; print_declarator decl_list; print_endline("}");
-  | Fun_declaration(ft, ident, param_list) -> print_endline("Function Declaration{"); print_endline("}");
-  | Fun_definition(ft, ident, param_list, decl_list, stmt_list) -> print_endline("Function Definition{"); print_endline("}")
+  | Var_declaration(ft, decl_list) -> print_endline("Variable Declaration {"); 
+                                      print_fulltype ft; 
+                                      print_endline("Declarator List {"); print_declarator decl_list; print_endline("}");
+                                      print_endline("}");
+  | Fun_declaration(ft, ident, param_list) -> print_endline("Function Declaration {"); 
+                                              print_fulltype ft; 
+                                              print_ident ident; 
+                                              print_endline("Parameter List {"); print_param param_list; print_endline("}");
+                                              print_endline("}");
+  | Fun_definition(ft, ident, param_list, decl_list, stmt_list) ->  print_endline("Function Definition {"); 
+                                                                    print_fulltype ft; 
+                                                                    print_ident ident; 
+                                                                    print_endline("Parameter List {"); print_param param_list; print_endline("}");
+                                                                    print_endline("Declaration List {"); print decl_list; print_endline("}");
+                                                                    print_endline("Statement List {"); print_stmt stmt_list; print_endline("}");
+                                                                    print_endline("}")
 
 and print_fulltype ft =
   match ft with
-  | Type(Int, p) -> print_endline(String.cat "Int" (string_of_int p));
-  | Type(Char, p) -> print_endline(String.cat "Char" (string_of_int p));
-  | Type(Bool, p) -> print_endline(String.cat "Bool" (string_of_int p));
-  | Type(Double, p) -> print_endline(String.cat "Double" (string_of_int p));
-  | Type(Void, p) -> print_endline(String.cat "Void" (string_of_int p))
+  | Type(Int, p) ->  print_string("Type ( Int" ^ (string_of_int p) ^ " ) ");  
+  | Type(Char, p) -> print_string("Type ( Char" ^ (string_of_int p) ^ " ) "); 
+  | Type(Bool, p) -> print_string("Type ( Bool" ^ (string_of_int p) ^ " ) "); 
+  | Type(Double, p) -> print_string("Type ( Double" ^ (string_of_int p) ^ " ) "); 
+  | Type(Void, p) -> print_string("Type ( Void" ^ (string_of_int p) ^ " ) "); 
   
-and print_declarator d = (* rec *)
+and print_declarator d =
   match d with
   | [] -> ()
-  | h::t -> print_endline("to do");
-      (* let h = Declarator(ident, constant_expr) *)
+  | Declarator(ident, None)::t -> print_string("Declarator { ");
+                                  print_ident ident; 
+                                  print_endline("}");
+                                  print_declarator t 
+  | Declarator(ident, Some(Const_expr(e)))::t -> print_endline("Declarator {");
+                                                 print_ident ident; 
+                                                 print_expr e; 
+                                                 print_endline("}");
+                                                 print_declarator t
+
+and print_ident (Id(s)) = print_string("Identifier: " ^ s ^ " ");
+
+and print_param p = 
+  match p with
+  | [] -> ()
+  | Param(None, ft, ident)::t ->  print_string("Parameter ( ");
+                                  print_fulltype ft; 
+                                  print_ident ident;
+                                  print_endline(" )");
+                                  print_param t;
+  | Param(Byref, ft, ident)::t -> print_string("Parameter ( Byref ");
+                                  print_fulltype ft; 
+                                  print_ident ident;
+                                  print_endline(" )");
+                                  print_param t;                        
+
+and print_stmt x = print_endline("stmt list");
+
+and print_expr x = print_endline("expr list")
