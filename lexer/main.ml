@@ -23,7 +23,7 @@ let main () =
           Parser.program Lexer.eds_lex lexbuf
         done
     with
-    | Parsing.Parse_error -> print_endline(string_of_int !line_number)
+    | Parsing.Parse_error -> print_endline("Syntax error at line: " ^ (string_of_int !line_number))
     | End_of_file -> Ast.print !Ast.syntaxTree; exit 0
         (* let _ = Printexc.print main () *)
     let _ = main(); Ast.print !Ast.syntaxTree

@@ -1,4 +1,7 @@
 void giorgos(int x) {
-d = a = new int * 2;
+flll m,x;
+int y;
+f(2);
+return;
 }
-
+$

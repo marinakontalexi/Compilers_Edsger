@@ -81,6 +81,8 @@ declaration: variable_declaration { $1 }
 ;
 
 variable_declaration: fulltype declarator_list SEMICOLON { Var_declaration($1, List.rev $2) }
+                    | error declarator_list SEMICOLON { print_endline("Syntax error: Wrong type at line " ^ (string_of_int !line_number)); Var_declaration(Type(Void, 0), [])}
+
 ;
 
 declarator_list: declarator { [$1] }
