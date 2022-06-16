@@ -4,6 +4,11 @@
     open Char
     open Parser
 
+    (* Exception *)
+    let lexical_error_found = ref false
+    let lexical_errors = ref []
+    exception Lexical_Error of string
+
     let line_number = ref 1
     let keyword_table = Hashtbl.create 20
     let _ = 
@@ -86,7 +91,6 @@ let escape = '\\' (['n' 't' 'r' '0' '\\' '\'' '"'] | 'x' HEX HEX)
 (* let stringescape = '\\' (['n' 't' 'r' '0' '\\' '\'' '"'] | 'x' HEX HEX) *)
 
 (* rules section *)
-
 rule eds_lex = parse
     | L (L | D | "_")* as id
         { try
@@ -106,10 +110,20 @@ rule eds_lex = parse
     | "//"[^'\n']+ { eds_lex lexbuf }
     | "/*" { comment lexbuf }
     (* | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf } *)
-    | eof { EOF }
+    | eof { if !lexical_error_found then               
+                let f (c,l) =
+                    "\nUnrecognized character:" ^ (String.make 1 c) ^ " at line: " ^ (string_of_int l)
+                in
+                    raise (Lexical_Error (List.fold_left (^) " " (List.map f (List.rev !lexical_errors))))
+            else
+                EOF 
+          }
     | _ as c
-        { printf "Unrecognized character: %c at line: %d\n" c !line_number;
-          CONST_C c
+        { 
+            lexical_error_found := true;
+            lexical_errors := (c, !line_number) :: !lexical_errors;
+            CONST_C c
+        
         }
     and comment = parse 
     | "*/" { eds_lex lexbuf }

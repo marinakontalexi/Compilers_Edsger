@@ -28,4 +28,4 @@ ast: ast.ml
 	ocamlopt -o ast ast.ml
 
 clean: 
-	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml ast.cmx ast.exe ast.o ast
+	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml ast.cmx ast.exe ast.o
