@@ -8,6 +8,7 @@
     let lexical_error_found = ref false
     let lexical_errors = ref []
     exception Lexical_Error of string
+    exception End_of_lexer
 
     let line_number = ref 1
     let keyword_table = Hashtbl.create 20
@@ -116,14 +117,14 @@ rule eds_lex = parse
                 in
                     raise (Lexical_Error (List.fold_left (^) " " (List.map f (List.rev !lexical_errors))))
             else
-                EOF 
+                EOF
           }
     | _ as c
         { 
             lexical_error_found := true;
             lexical_errors := (c, !line_number) :: !lexical_errors;
-            CONST_C c
-        
+            (* CONST_C c *)
+            eds_lex lexbuf
         }
     and comment = parse 
     | "*/" { eds_lex lexbuf }

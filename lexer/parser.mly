@@ -2,6 +2,18 @@
 %{
     open Printf
     open Ast
+    open Lexer
+
+    let parse_error s = 
+          if !lexical_error_found then               
+               let f (c,l) =
+                    "\nUnrecognized character:" ^ (String.make 1 c) ^ " at line: " ^ (string_of_int l)
+               in
+                    let error_string = List.fold_left (^) " " (List.map f (List.rev !lexical_errors)) in
+                    print_endline error_string;
+          else
+               ()
+     
 %}
 
 /* declarations */
