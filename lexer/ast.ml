@@ -43,6 +43,13 @@ type program = declaration list
 
 let syntaxTree : program ref = ref []
 
+let tabs = ref 0
+
+let rec print_tabs n =
+  match n with 
+  | 0 -> ()
+  | _ -> print_string("  "); print_tabs (n-1)
+
 let rec print x =            (* used for printing declaration lists *)
   match x with 
   | [] -> () (*print_endline("switch to c++")*)
@@ -50,39 +57,39 @@ let rec print x =            (* used for printing declaration lists *)
 
 and print_declaration x = 
   match x with
-  | Var_declaration(ft, decl_list) -> print_endline("Variable Declaration {"); 
+  | Var_declaration(ft, decl_list) -> print_tabs !tabs; print_endline("Variable Declaration {"); incr tabs;
                                       print_fulltype ft; 
-                                      print_endline("Declarator List {"); print_declarator decl_list; print_endline("}");
-                                      print_endline("}");
-  | Fun_declaration(ft, ident, param_list) -> print_endline("Function Declaration {"); 
+                                      print_endline("Declarator List {"); incr tabs; print_declarator decl_list; decr tabs; print_tabs !tabs; print_endline("}"); 
+                                      decr tabs; print_tabs !tabs; print_endline("}");
+  | Fun_declaration(ft, ident, param_list) -> print_tabs !tabs; print_endline("Function Declaration {"); incr tabs;
                                               print_fulltype ft; 
                                               print_ident ident; 
-                                              print_endline("Parameter List {"); print_param param_list; print_endline("}");
-                                              print_endline("}");
-  | Fun_definition(ft, ident, param_list, decl_list, stmt_list) ->  print_endline("Function Definition {"); 
+                                              print_endline("Parameter List {"); incr tabs; print_param param_list; decr tabs; print_tabs !tabs; print_endline("}"); 
+                                              decr tabs; print_tabs !tabs; print_endline("}"); 
+  | Fun_definition(ft, ident, param_list, decl_list, stmt_list) ->  print_tabs !tabs; print_endline("Function Definition {"); incr tabs;
                                                                     print_fulltype ft; 
                                                                     print_ident ident; 
-                                                                    print_endline("Parameter List {"); print_param param_list; print_endline("}");
-                                                                    print_endline("Declaration List {"); print decl_list; print_endline("}");
-                                                                    print_endline("Statement List {"); print_stmt stmt_list; print_endline("}");
-                                                                    print_endline("}")
+                                                                    print_endline("Parameter List {"); incr tabs; print_param param_list; decr tabs; print_tabs !tabs; print_endline("}"); 
+                                                                    print_tabs !tabs; print_endline("Declaration List {"); incr tabs; print decl_list;  decr tabs; print_tabs !tabs; print_endline("} -> End Declaration List");
+                                                                    print_tabs !tabs; print_endline("Statement List {"); incr tabs; print_stmt stmt_list; decr tabs; print_tabs !tabs; print_endline("}"); 
+                                                                    decr tabs; print_tabs !tabs; print_endline("} -> End Function Definition"); 
 
 and print_fulltype ft =
   match ft with
-  | Type(Int, p) ->  print_string("Type ( Int" ^ (string_of_int p) ^ " ) ");  
-  | Type(Char, p) -> print_string("Type ( Char" ^ (string_of_int p) ^ " ) "); 
-  | Type(Bool, p) -> print_string("Type ( Bool" ^ (string_of_int p) ^ " ) "); 
-  | Type(Double, p) -> print_string("Type ( Double" ^ (string_of_int p) ^ " ) "); 
-  | Type(Void, p) -> print_string("Type ( Void" ^ (string_of_int p) ^ " ) "); 
+  | Type(Int, p) -> print_tabs !tabs; print_string("Type ( Int" ^ (string_of_int p) ^ " ) ");  
+  | Type(Char, p) -> print_tabs !tabs; print_string("Type ( Char" ^ (string_of_int p) ^ " ) "); 
+  | Type(Bool, p) -> print_tabs !tabs; print_string("Type ( Bool" ^ (string_of_int p) ^ " ) "); 
+  | Type(Double, p) -> print_tabs !tabs; print_string("Type ( Double" ^ (string_of_int p) ^ " ) "); 
+  | Type(Void, p) -> print_tabs !tabs; print_string("Type ( Void" ^ (string_of_int p) ^ " ) "); 
   
 and print_declarator d =
   match d with
   | [] -> ()
-  | Declarator(ident, None)::t -> print_string("Declarator { ");
+  | Declarator(ident, None)::t -> print_tabs !tabs; print_string("Declarator { ");
                                   print_ident ident; 
                                   print_endline("}");
                                   print_declarator t 
-  | Declarator(ident, Some(Const_expr(e)))::t -> print_endline("Declarator {");
+  | Declarator(ident, Some(Const_expr(e)))::t -> print_tabs !tabs; print_endline("Declarator {");
                                                  print_ident ident; 
                                                  print_expr e; 
                                                  print_endline("}");
@@ -107,50 +114,50 @@ and print_param p =
 and print_stmt s = 
   match s with
   | [] -> ()
-  | Empty_stmt::t ->  print_endline("Empty Statement"); 
+  | Empty_stmt::t ->  print_tabs !tabs; print_endline("Empty Statement"); 
                       print_stmt t;
   | Expression(e)::t -> print_expr e; 
                         print_stmt t;
-  | Stmt_block(sb)::t ->  print_endline("Statement block {"); 
+  | Stmt_block(sb)::t ->  print_tabs !tabs; print_endline("Statement block {"); incr tabs;
                           print_stmt sb; 
-                          print_endline("}");
+                          decr tabs; print_tabs !tabs; print_endline("}");
                           print_stmt t;
   | If(e, s1, Some(s2))::t -> print_string("If Statement {\n If {\n"); print_expr e;
                               print_string("}\n Then {\n"); print_stmt [s1];
                               print_string("}\n Else {\n"); print_stmt [s2];
                               print_endline("}\n}");
                               print_stmt t;
-  | If(e, s1, None)::t -> print_string("If Statement\n If {\n"); print_expr e;
+  | If(e, s1, None)::t -> print_string("If Statement\nIf {\n"); print_expr e;
                           print_string("}\n Then {\n"); print_stmt [s1];
                           print_endline("}\n}");
                           print_stmt t;
-  | For(None, e1, e2, e3, s)::t ->  print_endline("For Statement {"); 
+  | For(None, e1, e2, e3, s)::t ->  print_tabs !tabs; print_endline("For Statement {"); incr tabs;
                                     print_expr_opt e1;
                                     print_expr_opt e2;
                                     print_expr_opt e3;
                                     print_stmt [s];
-                                    print_endline("}");
+                                    decr tabs; print_tabs !tabs; print_endline("}");
                                     print_stmt t;
-  | For(Some(ident), e1, e2, e3, s)::t ->   print_endline("For Statement {"); 
+  | For(Some(ident), e1, e2, e3, s)::t ->   print_tabs !tabs; print_endline("For Statement {");  incr tabs;
                                             print_ident ident; print_endline("");
                                             print_expr_opt e1;
                                             print_expr_opt e2;
                                             print_expr_opt e3;
                                             print_stmt [s];
-                                            print_endline("}");
+                                            decr tabs; print_endline("}"); print_tabs !tabs;
                                             print_stmt t;
-  | Continue(None)::t ->  print_endline("Continue Statement {}");
+  | Continue(None)::t ->  print_tabs !tabs; print_endline("Continue Statement {}");
                           print_stmt t;
-  | Continue(Some(ident))::t -> print_string("Continue Statement {");
-                                print_ident ident; print_endline("}");
+  | Continue(Some(ident))::t -> print_tabs !tabs; print_string("Continue Statement {"); incr tabs;
+                                print_ident ident; decr tabs; print_tabs !tabs; print_endline("}");
                                 print_stmt t;
-  | Break(None)::t -> print_endline("Break Statement {}");
+  | Break(None)::t -> print_tabs !tabs; print_endline("Break Statement {}");
                       print_stmt t;
-  | Break(Some(ident))::t ->  print_string("Break Statement {");
-                              print_ident ident; print_endline("}");
+  | Break(Some(ident))::t ->  print_tabs !tabs; print_string("Break Statement {"); incr tabs;
+                              print_ident ident; decr tabs; print_tabs !tabs; print_endline("}");
                               print_stmt t;
-  | Return(e)::t -> print_endline("Return Statement {");
-                  print_expr_opt e; print_endline("}");
+  | Return(e)::t -> print_tabs !tabs; print_endline("Return Statement {"); incr tabs;
+                  print_expr_opt e; decr tabs; print_tabs !tabs; print_endline("}");
                   print_stmt t
                               
 and print_expr_opt e =
@@ -159,73 +166,73 @@ and print_expr_opt e =
     | Some(e) -> print_expr e
 
 and print_expr x = 
-  print_endline(" Expression {");
+  print_tabs !tabs; print_endline("Expression {"); incr tabs;
   match x with
-  | Id(s) -> print_endline("String " ^ s); print_endline("}");
-  | True -> print_endline("True"); print_endline("}");
-  | False -> print_endline("Flase"); print_endline("}");
-  | NULL -> print_endline("NULL") ; print_endline("}");
-  | INT(i) -> print_endline("INT: " ^ string_of_int(i)); print_endline("}");
-  | CHAR(c) -> print_endline("CHAR: " ^ (String.make 1 c)); print_endline("}");
-  | FLOAT(f) -> print_endline("FLOAT: " ^ string_of_float(f)); print_endline("}");
-  | STRING(s) -> print_endline("STRING: " ^ s); print_endline("}");
-  | Fun_call(id, expr_list) -> print_endline("Fun_call {");
-                               print_ident id;
-                               print_endline("Expression List {"); print_expr_list expr_list; print_endline("}");
-                               print_endline("}");
-                               print_endline("}");
-  | Table_call(e1, e2) -> print_endline("Table_call {");
+  | Id(s) -> print_tabs !tabs; print_endline("String " ^ s); decr tabs; print_tabs !tabs; print_endline("}");
+  | True -> print_tabs !tabs; print_endline("True"); decr tabs; print_tabs !tabs; print_endline("}");
+  | False -> print_tabs !tabs; print_endline("Flase"); decr tabs; print_tabs !tabs; print_endline("}");
+  | NULL -> print_tabs !tabs; print_endline("NULL") ; decr tabs; print_tabs !tabs; print_endline("}");
+  | INT(i) -> print_tabs !tabs; print_endline("INT: " ^ string_of_int(i)); decr tabs; print_tabs !tabs; print_endline("}");
+  | CHAR(c) -> print_tabs !tabs; print_endline("CHAR: " ^ (String.make 1 c)); decr tabs; print_tabs !tabs; print_endline("}");
+  | FLOAT(f) -> print_tabs !tabs; print_endline("FLOAT: " ^ string_of_float(f)); decr tabs; print_tabs !tabs; print_endline("}");
+  | STRING(s) -> print_tabs !tabs; print_endline("STRING: " ^ s); decr tabs; print_tabs !tabs; print_endline("}");
+  | Fun_call(id, expr_list) -> print_tabs !tabs; print_endline("Fun_call {"); incr tabs;
+                               print_tabs !tabs; print_ident id;
+                               print_tabs !tabs; print_endline("Expression List {"); incr tabs; print_expr_list expr_list; decr tabs; print_tabs !tabs;  print_endline("}");
+                               decr tabs; print_tabs !tabs; print_endline("}");
+                               decr tabs; print_tabs !tabs; print_endline("}");
+  | Table_call(e1, e2) -> print_tabs !tabs; print_endline("Table_call {"); incr tabs;
                           print_expr e1; 
                           print_expr e2;
-                          print_endline("}"); 
-                          print_endline("}");
-  | Un_operation(unOP, e) -> print_endline("Un_operation {");
-                             print_unOP unOP;
+                          decr tabs; print_tabs !tabs; print_endline("}"); 
+                          decr tabs; print_tabs !tabs; print_endline("}");
+  | Un_operation(unOP, e) -> print_tabs !tabs; print_endline("Un_operation {"); incr tabs;
+                             print_tabs !tabs; print_unOP unOP;
                              print_expr e; 
-                             print_endline("}");
-                             print_endline("}");
-  | Bin_operation(e1, binOP, e2) -> print_endline("Bin_operation {");
+                             decr tabs; print_tabs !tabs; print_endline("}");
+                             decr tabs; print_tabs !tabs; print_endline("}");
+  | Bin_operation(e1, binOP, e2) -> print_tabs !tabs; print_endline("Bin_operation {"); incr tabs;
                                     print_expr e1;
-                                    print_binOP binOP;
+                                    print_tabs !tabs; print_binOP binOP;
                                     print_expr e2; 
-                                    print_endline("}");
-                                    print_endline("}");
-  | Un_assignment_left(unAssign, e) -> print_endline("Un_assignment_left {");
-                                       print_unAssign unAssign;
+                                    decr tabs; print_tabs !tabs; print_endline("}");
+                                    decr tabs; print_tabs !tabs; print_endline("}");
+  | Un_assignment_left(unAssign, e) -> print_tabs !tabs; print_endline("Un_assignment_left {"); incr tabs;
+                                       print_tabs !tabs; print_unAssign unAssign;
                                        print_expr e; 
-                                       print_endline("}");
-                                       print_endline("}");
-  | Un_assignment_right(e, unAssign) -> print_endline("Un_assignment_right {");
+                                       decr tabs; print_tabs !tabs; print_endline("}");
+                                       decr tabs; print_tabs !tabs; print_endline("}");
+  | Un_assignment_right(e, unAssign) -> print_tabs !tabs; print_endline("Un_assignment_right {"); incr tabs;
                                         print_expr e;
-                                        print_unAssign unAssign; 
-                                        print_endline("}");
-                                        print_endline("}");
-  | Bin_assignment(e1, binAssign, e2) -> print_endline("Bin_assignment {");
+                                        print_tabs !tabs; print_unAssign unAssign; 
+                                        decr tabs; print_tabs !tabs; print_endline("}");
+                                        decr tabs; print_tabs !tabs; print_endline("}");
+  | Bin_assignment(e1, binAssign, e2) -> print_tabs !tabs; print_endline("Bin_assignment {"); incr tabs;
                                          print_expr e1;
-                                         print_binAssign binAssign;
+                                         print_tabs !tabs; print_binAssign binAssign;
                                          print_expr e2;
-                                         print_endline("}");
-                                         print_endline("}");
-  | Typecast(ft, e) -> print_endline("Typecast {");
+                                         decr tabs; print_tabs !tabs; print_endline("}");
+                                         decr tabs; print_tabs !tabs; print_endline("}");
+  | Typecast(ft, e) -> print_tabs !tabs; print_endline("Typecast {"); incr tabs;
                        print_fulltype ft;
                        print_expr e;
-                       print_endline("}");
-                       print_endline("}");
-  | Question(e1, e2, e3) -> print_endline("Question {");
+                       decr tabs; print_tabs !tabs; print_endline("}");
+                       decr tabs; print_tabs !tabs; print_endline("}");
+  | Question(e1, e2, e3) -> print_tabs !tabs; print_endline("Question {"); incr tabs;
                             print_expr(e1);
                             print_expr(e2);
                             print_expr(e3);
-                            print_endline("}");
-                            print_endline("}");
-  | New(ft, e) -> print_endline("New {");
+                            decr tabs; print_tabs !tabs; print_endline("}");
+                            decr tabs; print_tabs !tabs; print_endline("}");
+  | New(ft, e) -> print_tabs !tabs; print_endline("New {"); incr tabs;
                   print_fulltype ft;
                   print_expr_opt e;
-                  print_endline("}");
-                  print_endline("}");
-  | Delete(e) -> print_endline("Delete {");
+                  decr tabs; print_tabs !tabs; print_endline("}");
+                  decr tabs; print_tabs !tabs; print_endline("}");
+  | Delete(e) -> print_tabs !tabs; print_endline("Delete {"); incr tabs;
                  print_expr e;
-                 print_endline("}");
-                 print_endline("}");
+                 decr tabs; print_tabs !tabs; print_endline("}");
+                 decr tabs; print_tabs !tabs; print_endline("}");
 
 and print_expr_list expr_list =
   match expr_list with

@@ -1,6 +1,6 @@
-#include "stdio.h"
+// #include "stdio.h"
 
 void main ()
 {
-   writeString("Hello world!\n")
+  writeString("Hello world!\n");
 }

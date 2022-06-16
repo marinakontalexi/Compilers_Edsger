@@ -1,6 +1,6 @@
 all: main clean
 
-main: ast ast.cmo lexer.cmo parser.cmo main.cmo parser.exe
+main: ast ast.cmo lexer.cmo parser.cmo main.cmo 
 	ocamlc -o main lexer.cmo ast.cmo parser.cmo main.cmo 
 
 main.cmi main.cmo: main.ml 
@@ -28,4 +28,4 @@ ast: ast.ml
 	ocamlopt -o ast ast.ml
 
 clean: 
-	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml
+	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml ast.cmx ast.exe ast.o ast

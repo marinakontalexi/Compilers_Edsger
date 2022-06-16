@@ -156,6 +156,7 @@ expression: ID { Id($1) }
           | CONST_C { CHAR($1) }
           | CONST_F { FLOAT($1) }
           | CONST_S { STRING($1) }
+          | ID L_PAREN R_PAREN { Fun_call(Id($1), [])}
           | ID L_PAREN expression_list R_PAREN { Fun_call(Id($1), List.rev $3) }
           | expression L_BRACK expression R_BRACK { Table_call($1, $3) }   /* mono gia *id[expr]?? */
           | unary_expression { $1 }
@@ -173,7 +174,7 @@ expression: ID { Id($1) }
 //           | L_BRACK expression R_BRACK { Some($2) }
 // ;
 
-expression_list: /* empty */ { [] }
+expression_list: expression { [$1] }
                | expression_list COMMA expression { $3::$1 }
 ;
 

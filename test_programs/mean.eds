@@ -1,6 +1,5 @@
-#include "stdio.h"
 
-void main ()
+void main()
 {
 
    int    n, k, i, seed;
@@ -19,4 +18,4 @@ void main ()
        writeReal(sum / (double) k);
        writeString("\n");
    }
-}*/
+}
