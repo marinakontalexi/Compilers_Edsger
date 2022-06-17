@@ -31,42 +31,33 @@ let param_find param_list = List.map type_find param_list
 
 let rec declaration_push decl =
   match decl with
-  | Decl_list([]) -> ()
-  | Decl_list(a::t) -> 
-    (* try
-      let Var_declaration(ft, dl) = a in declaration_push Var_declaration(ft, dl);
-    with Match_failure -> (
-      try
-        let Fun_declaration(ft, ident, pl) = a in declaration_push Fun_declaration(ft,ident,pl)
-      with Match_failure ->
-        let Fun_definition(ft, ident, pl, dl, sl) = a in declaration_push Fun_definition(ft, ident, pl ,dl, sl)
-    ) *)
-    (
-    match a with
-    | Var_declaration(ft, dl) -> (declaration_push Var_declaration(ft, dl); declaration_push Decl_list(t)
-    | Fun_declaration(ft, ident, pl) -> let () = declaration_push Fun_declaration(ft, ident, pl); let () = declaration_push Decl_list(t)
-    | Fun_definition(ft, ident, pl, dl, sl) -> let () = declaration_push Fun_definition(ft, ident, pl, dl, sl); declaration_push Decl_list(t)
-  )
+  | Parameter_definition([]) -> ()
+  | Parameter_definition(Param(_, ft, ident)::t) -> let d = Declarator(ident, None) in
+                                                    declaration_push (Var_declaration(ft, [d]));
+                                                    declaration_push (Parameter_definition(t))           
   | Var_declaration (_, []) -> ()
   | Var_declaration(Type(a,x), Declarator(Id(s), e)::t) ->if e == None 
                                                           then 
                                                             let symbol = (s, Type(a,x),!scope, None) in
                                                               symbol_push symbol;
-                                                              declaration_push Var_declaration(Type(a,x), t)
+                                                              declaration_push (Var_declaration(Type(a,x), t))
                                                           else  
                                                             let symbol = (s, Type(a, x+1),!scope, None) in
                                                               symbol_push symbol;
-                                                              declaration_push Var_declaration(Type(a,x), t)
-  | Fun_declaration(ft, Id(s), pl) -> let symbol = (s, ft, !scope, Some(param_find pl)) in 
+                                                              declaration_push (Var_declaration(Type(a,x), t))
+  | Fun_declaration(ft, Id(s), pl) -> let symbol = (s, ft, !scope, Some(pl)) in 
                                       symbol_push symbol
   | Fun_definition(ft, Id(s), [], dl, _) -> ()                                    
-  | Fun_definition(ft, Id(s), pl, dl, _) -> declaration_push(Fun_declaration(ft, Id(s), pl));
+  | Fun_definition(ft, Id(s), pl, dl, _) -> declaration_push (Fun_declaration(ft, Id(s), pl));
                                             incr scope;
-                                            declaration_push Parameter_definition(pl);
-                                            declaration_push Decl_list(dl);
+                                            declaration_push (Parameter_definition(pl));
+                                            declaration_push (Decl_list(dl));
                                             scope_delete;
-                                            decr scope            
-  | Parameter_definition([]) -> ()
-  | Parameter_definition(Param(_, ft, ident)::t) -> let d = Declarator(ident, None) in
-                                                    declaration_push Var_declaration(ft, [d]);
-                                                    declaration_push Parameter_definition(t)          
+                                            decr scope
+  | Decl_list([]) -> ()
+  | Decl_list(a::t) -> 
+      match a with
+      | Var_declaration(ft, dl) -> declaration_push Var_declaration(ft, dl); declaration_push Decl_list(t)
+      | Fun_declaration(ft, ident, pl) -> declaration_push Fun_declaration(ft, ident, pl); declaration_push Decl_list(t)
+      | Fun_definition(ft, ident, pl, dl, sl) -> declaration_push Fun_definition(ft, ident, pl, dl, sl); declaration_push Decl_list(t)            
+
