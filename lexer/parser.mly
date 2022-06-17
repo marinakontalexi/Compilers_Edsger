@@ -126,7 +126,7 @@ parameter_list: /* empty */ { [] }
 ;
 
 parameter: BYREF fulltype ID { Param(Byref, $2, Id($3)) }
-         | fulltype ID { Param(None, $1, Id($2)) }
+         | fulltype ID { Param(Byvalue, $1, Id($2)) }
 ;
 
 

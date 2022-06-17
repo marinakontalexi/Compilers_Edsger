@@ -33,7 +33,7 @@ type stmt = Empty_stmt
           | Continue of id option
           | Break of id option
           | Return of expr option
-type call = None | Byref
+type call = Byvalue | Byref
 type parameter = Param of call * fulltype * id
 type declarator = Declarator of id * constant_expr option
 type declaration = Var_declaration of fulltype * declarator list
@@ -100,7 +100,7 @@ and print_ident (Id(s)) = print_string("Identifier: " ^ s ^ " ");
 and print_param p = 
   match p with
   | [] -> ()
-  | Param(None, ft, ident)::t ->  print_string("Parameter ( ");
+  | Param(Byvalue, ft, ident)::t ->  print_string("Parameter ( ");
                                   print_fulltype ft; 
                                   print_ident ident;
                                   print_endline(" )");
