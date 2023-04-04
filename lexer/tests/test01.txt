@@ -1,7 +1,4 @@
 void giorgos(int x) {
-flll m,x;
 int y;
-f(2);
 return;
 }
-$
