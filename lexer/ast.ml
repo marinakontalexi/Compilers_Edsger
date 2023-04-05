@@ -39,7 +39,7 @@ type declarator = Declarator of id * constant_expr option
 type declaration = Var_declaration of fulltype * declarator list
                  | Fun_declaration of fulltype * id * parameter list
                  | Fun_definition of fulltype * id * parameter list * declaration list * stmt list
-type program = Declaration_List of declaration list
+type program = declaration list
 
 let syntaxTree : program ref = ref []
 
@@ -52,8 +52,8 @@ let rec print_tabs n =
 
 let rec print x =            (* used for printing declaration lists *)
   match x with 
-  | Declaration_List([]) -> () (*print_endline("switch to c++")*)
-  | Declaration_List(h::t) -> print_declaration h; print t
+  | [] -> () (*print_endline("switch to c++")*)
+  | h::t -> print_declaration h; print t
 
 and print_declaration x = 
   match x with

@@ -1,7 +1,7 @@
 open Ast
 open Symbol
 
-type semantic_node = program | declaration | declarator
+type semantic_node = program | declaration | declarator | stmt
 type result_value_type = LVal | RVal
 (* type semantic_node = Program of declaration list *)
 
@@ -44,18 +44,55 @@ let rec declaration_push decl =
 
 let semantic ast =
   match ast with
-  | Declaration_List([]) -> print_endline("Success!")
-  | Declaration_List(h::t) -> semantic h; semantic Declaration_List(t)
   | Var_declaration(_, []) -> ()
   | Var_declaration(ft, h::t) -> 
     let Declarator(Id(s), ce) = h in
-      if ce == Some(e) then (
-        check e Type(Int, 0) RVal
-      ); 
-      symbol_push Symbol(s, ft, [], !scope);
+      check ce Type(Int, 0) RVal
+      symbol_push Symbol(s, ft, None, !scope);
       semantic Var_declaration(ft, t)
   | Fun_declaration(ft, Id(s), pl) ->
-  | Fun_definition() ->
+    symbol_push Symbol(s, ft, Some(pl), !scope)
+  | Fun_definition(ft, Id(s), pl, dl, sl) ->
+    symbol_push Symbol(s, ft, Some(pl), !scope);
+    scope_add;
+    List.map push_param pl;
+    ret_stack := ft :: !ret_stack;
+    List.map semantic dl;
+    List.map semantic sl;
+    ret_stack := List.tl !ret_stack;
+    scope_delete
+  | Empty_stmt -> ()
+  | Expression(e) -> check e NULL NULL
+  | Stmt_block(sl) -> 
+    scope_add;
+    List.map semantic sl;
+    scope_delete
+  | If(e, s, None) -> 
+    check e Type(Bool, 0) RVal;
+    semantic s
+  | If(e, s1, Some(s2)) -> 
+    check e Type(Bool, 0) RVal;
+    semantic s1;
+    semantic s2
+  | For(None, e1, e2, e3, s) ->
+    check e1 NULL NULL;
+    check e2 Type(Bool, 0) RVal;
+    check e3 NULL NULL;
+    semantic s
+  | For(Some(Id(id)), e1, e2, e3, s) -> 
+    check e1 NULL NULL;
+    check e2 Type(Bool, 0) RVal;
+    check e3 NULL NULL;
+    (* here *)
+    semantic s
+  | Continue(None)-> 
+  | Continue(Some(Id(s))) ->
+  | Break(None) -> 
+  | Break(Some(Id(s))) -> 
+  | Return(e) -> 
+
+
+
   
 let check s =
   match s with

@@ -64,7 +64,7 @@
 %%
 
 /* grammar rules */
-program: declaration_list EOF {syntaxTree := Declaration_List(List.rev $1); raise End_of_file }
+program: declaration_list EOF {syntaxTree := List.rev $1; raise End_of_file }
 ;
 
 declaration_list: declaration { [$1] }
