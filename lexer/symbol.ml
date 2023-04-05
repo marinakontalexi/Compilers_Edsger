@@ -1,91 +1,47 @@
-(*Symbol Table 
-  implementation: 
-    -> hashtable of enrties = {id, scope}
-    -> a list of entries for each scope 
-  functions:
-  -> st_insert
-  -> st_delete
-  -> st_lookup
-  -> openScope
-  -> closeScope
-*)
-open Ast
+type 'a pointer = NULL | Pointer of 'a ref
 
-module ST_hashtbl = Hashtbl.Make (
-  struct
-    type t = Ast.id
-    let equal = (==)
-    let hash = Hashtbl.hash
-  end
-)
+let ( !^ ) = function
+  | NULL -> invalid_arg "Attempt to dereference the null pointer"
+  | Pointer r -> !r;
 
-(*entries of symbol table*)
-type st_entry = {
-  st_entry_id : Ast.id;
-  st_entry_type : Ast.fulltype;
-  st_entry_scope : scope;
-  (* st_entry_info : entry_info *)
-}
+let ( ^:= ) p v =
+  match p with
+    | NULL -> invalid_arg "Attempt to assign the null pointer"
+    | Pointer r -> r := v;
 
-and scope = {
-  parent_scope : scope option;
-  nesting_num : int;
-  mutable scope_entries : st_entry list;   
-}
+type symbol = Symbol of string * fulltype * symbol list * int
+type ilist = cell pointer
+and cell = { mutable data : symbol; mutable next : ilist }
 
-(* and entry_info = Variable of variable_info;
+let symbol_hash = Hashtbl.create 1234
+let symbol_stack = ref []
+let scope = ref 0
 
-and variable_info = {
-  variable_type : Ast.ft
-} *)
+let symbol_push s = 
+  let Symbol(id, _, _, _) = s 
+  and prev = 
+    try
+      Hashtbl.find symbol_hash (Hashtbl.hash id)
+    with Not_found -> NULL
+  and new_cell = {data = s; next = prev} 
+  and new_pointer = Pointer (ref new_cell)
+  in
+    symbol_stack := new_cell :: !symbol_stack;
+    if prev != NULL then Hashtbl.remove symbol_hash (Hashtbl.hash id);
+    Hashtbl.add symbol_hash (Hashtbl.hash id) new_pointer
+    
 
-let program_scope : scope = {
-  parent_scope = None;
-  nesting_num = 0;
-  scope_entries = [] 
-}
+let rec scope_delete =
+  match !symbol_stack with
+  | [] -> ()
+  | top::t -> 
+    let (s, _, _, i) = top.data and next = top.next 
+    in
+      if i != !scope then decr scope
+      else (symbol_stack := t; 
+            Hashtbl.remove symbol_hash (Hashtbl.hash s);
+            if next == NULL then ()
+            else (Hashtbl.add symbol_hash (Hashtbl.hash s) next);
+            scope_delete ())
 
-(*scope in use*)
-let top_scope : scope ref = { contents = program_scope} 
-
-(*construction of symbol table*)
-let symbol_table = ref (ST_hashtbl.create 26) (* size?*)
-
-let st_insert ident typ = 
-    let entry : st_entry = {
-      st_entry_id = ident;
-      st_entry_scope = !top_scope;
-      st_entry_type = typ
-    } in
-    ST_hashtbl.add !symbol_table ident entry;
-    !top_scope.scope_entries = entry :: !top_scope.scope_entries
-
-let st_delete entry = ST_hashtbl.remove !symbol_table entry.st_entry_id
-
-type lookup_type = TOP_SCOPE | ALL_SCOPES
-
-(*allagi?*)
-let st_lookup ident lookup_scope_type = 
-    match lookup_scope_type with
-    | TOP_SCOPE -> 
-        let found = ST_hashtbl.find !symbol_table ident in
-        if found.st_entry_scope.nesting_num == (!top_scope).nesting_num 
-        then found
-        (*TO DO*)else exit 1 (*error Not found*)
-    | ALL_SCOPES -> ST_hashtbl.find !symbol_table ident
-
-let openScope = 
-  let newScope : scope = {
-    parent_scope = Some !top_scope;
-    nesting_num = !top_scope.nesting_num + 1;
-    scope_entries = []
-  } in
-  top_scope := newScope
-
-
-let close_scope = 
-    let current_scope = !top_scope in
-    List.iter st_delete current_scope.scope_entries;
-    match current_scope.parent_scope with
-    | Some (parent_sc) -> top_scope := parent_sc
-    | None -> () (*close program scope only when program finish*) 
+let scope_add = incr scope

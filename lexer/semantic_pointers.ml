@@ -1,60 +1,12 @@
 open Ast
-
-type 'a pointer = NULL | Pointer of 'a ref
-
-let ( !^ ) = function
-  | NULL -> invalid_arg "Attempt to dereference the null pointer"
-  | Pointer r -> !r;
-
-let ( ^:= ) p v =
-  match p with
-    | NULL -> invalid_arg "Attempt to assign the null pointer"
-    | Pointer r -> r := v;
-
-type symbol = string * fulltype * symbol list * int
+open Symbol
 
 type semantic_node = program | declaration | declarator
-
+type result_value_type = LVal | RVal
 (* type semantic_node = Program of declaration list *)
 
 (* let type_find (Param (_, ft, _)) = ft
 let param_find param_list = List.map type_find param_list *)
-
-type ilist = cell pointer
-and cell = { mutable data : symbol; mutable next : ilist }
-
-let symbol_hash = Hashtbl.create 1234
-let symbol_stack = ref []
-let scope = ref 0
-
-let symbol_push s = 
-  let (id, _, _, _) = s 
-  and prev = 
-    try
-      Hashtbl.find symbol_hash (Hashtbl.hash id)
-    with Not_found -> NULL
-  and new_cell = {data = s; next = prev} 
-  and new_pointer = Pointer (ref new_cell)
-  in
-    symbol_stack := new_cell :: !symbol_stack;
-    if prev != NULL then Hashtbl.remove symbol_hash (Hashtbl.hash id);
-    Hashtbl.add symbol_hash (Hashtbl.hash id) new_pointer
-    
-
-let rec scope_delete =
-  match !symbol_stack with
-  | [] -> ()
-  | top::t -> 
-    let (s, _, _, i) = top.data and next = top.next 
-    in
-      if i != !scope then decr scope
-      else (symbol_stack := t; 
-            Hashtbl.remove symbol_hash (Hashtbl.hash s);
-            if next == NULL then ()
-            else (Hashtbl.add symbol_hash (Hashtbl.hash s) next);
-            scope_delete ())
-
-let scope_add = incr scope
 
 let rec declaration_push decl =
   match decl with
@@ -90,15 +42,20 @@ let rec declaration_push decl =
       | Fun_definition(ft, ident, pl, dl, sl) -> declaration_push (Fun_definition(ft, ident, pl, dl, sl)); declaration_push (Decl_list(t))           
       )
 
-let semantic ast ft =
+let semantic ast =
   match ast with
   | Declaration_List([]) -> print_endline("Success!")
-  | Declaration_List(h::t) -> semantic h NULL; semantic Declaration_List(t) NULL
+  | Declaration_List(h::t) -> semantic h; semantic Declaration_List(t)
   | Var_declaration(_, []) -> ()
-  | Var_declaration(myft, h::t) -> semantic h myft; semantic Var_declaration(myft, t) NULL
-  | Fun_declaration(myft, Id(s), pl) ->
+  | Var_declaration(ft, h::t) -> 
+    let Declarator(Id(s), ce) = h in
+      if ce == Some(e) then (
+        check e Type(Int, 0) RVal
+      ); 
+      symbol_push Symbol(s, ft, [], !scope);
+      semantic Var_declaration(ft, t)
+  | Fun_declaration(ft, Id(s), pl) ->
   | Fun_definition() ->
-  | Declarator(Id(s), e) -> 
   
 let check s =
   match s with
