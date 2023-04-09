@@ -8,7 +8,6 @@
     let lexical_error_found = ref false
     let lexical_errors = ref []
     exception Lexical_Error of string
-    exception End_of_lexer
 
     let line_number = ref 1
     let keyword_table = Hashtbl.create 20

@@ -1,10 +1,6 @@
-type 'a pointer = NULL | Pointer of 'a ref
-
-let ( !^ ) = function
-  | NULL -> invalid_arg "Attempt to dereference the null pointer"
-  | Pointer r -> !r;
-
-let ( ^:= ) p v =
-  match p with
-    | NULL -> invalid_arg "Attempt to assign the null pointer"
-    | Pointer r -> r := v;
+let foo =
+  symbol_push (Symbol("a", Type(Int, 0), None, !scope));
+  symbol_push (Symbol("aa", Type(Int, 0), None, !scope));
+  scope_add ();
+  symbol_push (Symbol("b", Type(Int, 0), None, !scope))
+  

@@ -24,6 +24,10 @@ let main () =
         done
     with
     | Parsing.Parse_error -> print_endline("Syntax error at line: " ^ (string_of_int !line_number))
-    | End_of_file -> Ast.print !Ast.syntaxTree; exit 0
+    | Lexer.Lexical_Error p -> print_endline(p)
+    | End_of_file -> Ast.print !Ast.syntaxTree (* exit 0 *)
         (* let _ = Printexc.print main () *)
-    let _ = main(); Ast.print !Ast.syntaxTree
+    (* sematic ast;
+       print_sem_error *)
+      
+let _ = main(); Ast.print !Ast.syntaxTree

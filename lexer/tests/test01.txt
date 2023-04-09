@@ -1,4 +1,4 @@
 void giorgos(int x) {
-int y;
+int y;$
 return;
 }

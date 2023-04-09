@@ -5,8 +5,8 @@ type bin_op = TIMES | DIV | MOD | PLUS | MINUS
 type un_assign = INCR | DECR
 type bin_assign = ASSIGN | TIMESEQ | DIVEQ | MODEQ | PLUSEQ | MINUSEQ
 type id = Id of string
-type basic_type = Int | Char | Bool | Double | Void
-type fulltype = Type of basic_type * int (*pointer list if we use star*)
+type basic_type = Int | Char | Bool | Double | Void | Label
+type fulltype = Type of basic_type * int | NULL(*pointer list if we use star*)
 type expr = Id of string
           | True | False | NULL 
           | INT of int
@@ -42,6 +42,19 @@ type declaration = Var_declaration of fulltype * declarator list
 type program = declaration list
 
 let syntaxTree : program ref = ref []
+
+let fulltype_to_string ft =
+  let rec f rc n = match n with    
+    | 0 -> rc    
+    | p -> f ("*" ^ rc) (p-1)
+  in
+  match ft with
+  | Type(Int, p) -> "Int" ^ (f "" p)
+  | Type(Char, p) -> "Char" ^ (f "" p) 
+  | Type(Bool, p) -> "Bool" ^ (f "" p)  
+  | Type(Double, p) -> "Double" ^ (f "" p)
+  | Type(Void, p) -> "Void" ^ (f "" p)
+  | Type(Label, p) -> "Label" 
 
 let tabs = ref 0
 
