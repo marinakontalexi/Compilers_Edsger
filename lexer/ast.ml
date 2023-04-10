@@ -55,6 +55,7 @@ let fulltype_to_string ft =
   | Type(Double, p) -> "Double" ^ (f "" p)
   | Type(Void, p) -> "Void" ^ (f "" p)
   | Type(Label, p) -> "Label" 
+  | _ -> ""
 
 let tabs = ref 0
 
@@ -94,8 +95,9 @@ and print_fulltype ft =
   | Type(Bool, p) -> print_tabs !tabs; print_string("Type ( Bool" ^ (string_of_int p) ^ " ) "); 
   | Type(Double, p) -> print_tabs !tabs; print_string("Type ( Double" ^ (string_of_int p) ^ " ) "); 
   | Type(Void, p) -> print_tabs !tabs; print_string("Type ( Void" ^ (string_of_int p) ^ " ) "); 
-  
-and print_declarator d =
+  | Type(Label, _) -> print_tabs !tabs; print_string("Type ( Label" ^ " ) "); 
+  | _ -> ()
+  and print_declarator d =
   match d with
   | [] -> ()
   | Declarator(ident, None)::t -> print_tabs !tabs; print_string("Declarator { ");

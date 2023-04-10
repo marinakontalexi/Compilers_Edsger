@@ -1,9 +1,41 @@
-(* open Ast *)
+open Ast
 
 type symbol = NULL | Symbol of string * fulltype * parameter list option * int 
 type 'a pointer = NULL | Pointer of 'a ref
 type ilist = cell pointer
 and cell = { mutable data : symbol; mutable next : ilist }
+
+type semantic_node = Var_declaration of fulltype * declarator list
+                   | Fun_declaration of fulltype * id * parameter list
+                   | Fun_definition of fulltype * id * parameter list * semantic_node list * semantic_node list
+                   | Empty_stmt
+                   | Expression of expr
+                   | Stmt_block of semantic_node list
+                   | If of expr * semantic_node * semantic_node option
+                   | For of id option * expr option * expr option * expr option * semantic_node
+                   | Continue of id option
+                   | Break of id option
+                   | Return of expr option
+
+type result_value_type = LVal | RVal | NULL
+
+let rec stmt_to_sem (st:stmt) =
+match st with
+  | Empty_stmt -> (Empty_stmt: semantic_node)
+  | Expression(e) -> (Expression(e): semantic_node)
+  | Stmt_block(slist) -> (Stmt_block((List.map stmt_to_sem slist)): semantic_node)
+  | If(e, s, None) -> (If(e, (stmt_to_sem s), None):semantic_node)
+  | If(e, s1, Some(s2)) -> (If(e, (stmt_to_sem s1), Some((stmt_to_sem s2))): semantic_node)
+  | For(id, e1, e2, e3, s) -> (For(id, e1, e2, e3, stmt_to_sem s): semantic_node)
+  | Continue(id) -> (Continue(id): semantic_node)
+  | Break(id) -> (Break(id): semantic_node)
+  | Return(e) -> (Return(e): semantic_node)
+
+let rec decl_to_sem (decl:declaration) = 
+match decl with 
+  | Var_declaration(ft, dlist) -> (Var_declaration(ft, dlist): semantic_node)
+  | Fun_declaration(ft, id, plist) -> (Fun_declaration(ft, id, plist): semantic_node)
+  | Fun_definition(ft, id, plist, dlist, slist) -> (Fun_definition(ft, id, plist, (List.map decl_to_sem dlist), (List.map stmt_to_sem slist)): semantic_node)
 
 let ( !^ ) = function
   | Pointer r -> !r
@@ -16,12 +48,11 @@ let ( ^:= ) p v =
 
 let symbol_hash = Hashtbl.create 1234
 let symbol_stack = ref []
-let ret_stack = ref []
 let scope = ref 0
 
 let symbol_push s = 
   let Symbol(id, _, _, _) = s in 
-  let prev = 
+  let (prev:ilist) = 
     try
       Hashtbl.find symbol_hash (Hashtbl.hash id)
     with Not_found -> NULL 
@@ -66,7 +97,7 @@ let symbol_find id flag =   (* flag true: global search *)
   in
     try 
     let Symbol(curr, ft, pl, s) = find_help p id in
-      if flag or (s = !scope) then Symbol(curr, ft, pl, s)
+      if flag || (s = !scope) then Symbol(curr, ft, pl, s)
       else NULL
     with invalid_arg -> print_endline("Invalid"); NULL
   

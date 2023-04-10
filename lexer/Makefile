@@ -1,10 +1,13 @@
 all: main clean
 
-main: ast ast.cmo lexer.cmo parser.cmo main.cmo 
-	ocamlc -o main lexer.cmo ast.cmo parser.cmo main.cmo 
+main: ast.cmo semantic.cmo lexer.cmo parser.cmo main.cmo 
+	ocamlc -o main lexer.cmo ast.cmo parser.cmo symbol.cmo semantic.cmo main.cmo 
 
 main.cmi main.cmo: main.ml 
 	ocamlc -c main.ml
+
+semantic.cmo: semantic.ml ast.cmo symbol.cmo lexer.cmi
+	ocamlc -c semantic.ml
 
 parser.cmo: parser.ml lexer.cmi 
 	ocamlc -c parser.ml
@@ -21,11 +24,11 @@ parser.cmi: parser.mli
 parser.exe parser.ml parser.mli: parser.mly 
 	ocamlyacc -v parser.mly 
 
+symbol.cmo: symbol.ml ast.cmo
+	ocamlc -c symbol.ml
+
 ast.cmo: ast.ml
 	ocamlc -c ast.ml
 
-ast: ast.ml
-	ocamlopt -o ast ast.ml
-
 clean: 
-	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml ast.cmx ast.exe ast.o
+	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml

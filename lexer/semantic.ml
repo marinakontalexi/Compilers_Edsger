@@ -1,83 +1,154 @@
 open Ast
+open Symbol
+open Lexer
 
-type symbol_node = Var_declaration of fulltype * declarator list
-                 | Fun_declaration of fulltype * id * parameter list
-                 | Fun_definition of fulltype * id * parameter list * declaration list * stmt list
-                 | Parameter_definition of parameter list
-                 | Decl_list of declaration list
+let ret_stack = ref []
 
-type semantic_node = Program of declaration list
+let semantic_errors = ref []
+exception Semantic_Error of string
+exception End_of_semantic
 
-let scope_hash = Hashtbl.create 1234
-let symbol_stack = ref []
-let scope = ref 0
+let typecheck name ft t1 =
+  if ft != t1 
+    then semantic_errors := (name ^ " has type " ^ (fulltype_to_string ft) ^
+                        "but type " ^ (fulltype_to_string t1) ^ " was expected", !Lexer.line_number) :: !semantic_errors
+  else ()
 
-let rec loop stack =
-  match stack with
-  | [] -> ()
-  | (s, _, i, _)::t -> if i == !scope then symbol_stack := t; 
-                                           Hashtbl.remove scope_hash(Hashtbl.hash s);
-                                           loop !symbol_stack
+let retcheck name = 
+  semantic_errors := (name ^ " has type RVal but type LVal was expected", !Lexer.line_number) :: !semantic_errors
 
-let scope_delete = 
-  if !scope == 0 then ()
-  else loop !symbol_stack
+let rec check (expression:expr) t1 t2 =
+  match expression with
+  | NULL -> () (* ? *)
+  | Id(s) -> 
+      if (symbol_find s true) = NULL 
+        then semantic_errors := ("Identifier " ^ s ^ " does not exist", !Lexer.line_number) :: !semantic_errors
+      else (
+        let Symbol(id, ft, pl, sc) = (symbol_find s true) 
+        in typecheck ("Identifier " ^ id) ft t1)
+  | True -> 
+      typecheck ("Expression True") (Type(Bool, 0)) t1;
+      if t2 = LVal then retcheck "Expression True"
+  | False -> 
+      typecheck ("Expression False") (Type(Bool, 0)) t1;
+      if t2 = LVal then retcheck "Expression False"
+  | INT(i) -> 
+      typecheck ("Expression " ^ (string_of_int i)) (Type(Int, 0)) t1;
+      if t2 = LVal then retcheck ("Expression " ^ (string_of_int i))
+  | CHAR(c) -> 
+      typecheck ("Expression " ^ (String.make 1 c)) (Type(Char, 0)) t1;
+      if t2 = LVal then retcheck ("Expression " ^ (String.make 1 c))
+  | FLOAT(f) -> 
+      typecheck ("Expression " ^ (string_of_float f)) (Type(Double, 0)) t1;
+      if t2 = LVal then retcheck ("Expression " ^ (string_of_float f))
+  | STRING(s) ->
+      typecheck ("String " ^ s) (Type(Double, 0)) t1;
+      if t2 = LVal then retcheck ("String " ^ s)
+  | Fun_call(Id(s), elist) -> 
+      let ret = (symbol_find s true) in
+      if ret = NULL 
+        then semantic_errors := ("Function " ^ s ^ " does not exist", !Lexer.line_number) :: !semantic_errors
+      else
+        let Symbol(id, ft, pl, sc) = ret 
+        in 
+          typecheck ("Function " ^ id) ft t1;
+          if t2 = LVal then retcheck ("Function call " ^ id);
+          if pl = None then ()
+          else(
+            let Some(plist) = pl in
+              if List.length elist != List.length plist 
+                then semantic_errors := ("Function call " ^ s ^ " expects " ^ string_of_int (List.length plist) ^ " arguments but " ^ string_of_int (List.length elist) ^ " were given", !Lexer.line_number) :: !semantic_errors
+              else
+                let foo p e =
+                  match p with 
+                  | Param(Byref, ft, id) -> check e ft LVal
+                  | Param(Byvalue, ft, id) -> check e ft RVal
+                in 
+                let _ = List.map2 foo plist elist in ())        
+  | Table_call(e1, e2) -> ()
+  | Un_operation(op, e) -> ()
+  | Bin_operation(e1, op, e2) -> ()
+  | Un_assignment_left(op, e) -> ()
+  | Un_assignment_right(e, op) -> ()
+  | Bin_assignment(e1, op, e2) -> ()
+  | Typecast(ft, e) -> ()
+  | Question(e1, e2, e3) -> ()
+  | New(ft, e) -> ()
+  | Delete(e) ->  ()
 
-let symbol_push symbol = 
-  let (s, _, _, _) = symbol in
-    Hashtbl.add scope_hash (Hashtbl.hash s) symbol;
-    symbol_stack := symbol :: !symbol_stack
-
-let type_find (Param (_, ft, _)) = ft
-let param_find param_list = List.map type_find param_list
-
-let rec declaration_push decl =
-  match decl with
-  | Parameter_definition([]) -> ()
-  | Parameter_definition(Param(_, ft, ident)::t) -> let d = Declarator(ident, None) in
-                                                    declaration_push (Var_declaration(ft, [d]));
-                                                    declaration_push (Parameter_definition(t))           
-  | Var_declaration (_, []) -> ()
-  | Var_declaration(Type(a,x), Declarator(Id(s), e)::t) ->if e == None 
-                                                          then 
-                                                            let symbol = (s, Type(a,x),!scope, None) in
-                                                              symbol_push symbol;
-                                                              declaration_push (Var_declaration(Type(a,x), t))
-                                                          else  
-                                                            let symbol = (s, Type(a, x+1),!scope, None) in
-                                                              symbol_push symbol;
-                                                              declaration_push (Var_declaration(Type(a,x), t))
-  | Fun_declaration(ft, Id(s), pl) -> let symbol = (s, ft, !scope, Some(pl)) in 
-                                      symbol_push symbol
-  | Fun_definition(ft, Id(s), [], dl, _) -> ()                                    
-  | Fun_definition(ft, Id(s), pl, dl, sl) -> declaration_push (Fun_declaration(ft, Id(s), pl));
-                                            incr scope;
-                                            declaration_push (Parameter_definition(pl));
-                                            declaration_push (Decl_list(dl));
-                                            (* check (Stmt_block(sl)) *)
-                                            scope_delete;
-                                            decr scope
-  | Decl_list([]) -> ()
-  | Decl_list(a::t) -> 
-      (match a with
-      | Var_declaration(ft, dl) -> declaration_push (Var_declaration(ft, dl)); declaration_push (Decl_list(t))
-      | Fun_declaration(ft, ident, pl) -> declaration_push (Fun_declaration(ft, ident, pl)); declaration_push (Decl_list(t))
-      | Fun_definition(ft, ident, pl, dl, sl) -> declaration_push (Fun_definition(ft, ident, pl, dl, sl)); declaration_push (Decl_list(t))           
-      )
-
-(* let semantic ast =
-  match ast with
-  | Program([]) -> print_endline("Success!")
-  | Program(h::t) -> semantic Declaration_sem(h); semantic Program(t)
-  | Declaration_sem(Var_declaration(ft,dl))->
-  | Declaration_sem(Fun_declaration()) *)
-  
-let check s =
-  match s with
+let rec semantic node =
+  match node with
+  | Var_declaration(_, []) -> ()
+  | Var_declaration(ft, Declarator(Id(s), ce)::t) -> 
+      if ce = None then (
+        symbol_push (Symbol(s, ft, None, !scope));
+        semantic (Var_declaration(ft, t)))
+      else (
+        let Some(Const_expr(e)) = ce in 
+        check e (Type(Int, 0)) RVal;
+        symbol_push (Symbol(s, ft, None, !scope));
+        semantic (Var_declaration(ft, t)))
+  | Fun_declaration(ft, Id(s), pl) ->
+      symbol_push (Symbol(s, ft, Some(pl), !scope))
+  | Fun_definition(ft, Id(s), pl, dl, sl) ->
+      symbol_push (Symbol(s, ft, Some(pl), !scope));
+      scope_add ();
+      List.map push_param pl;
+      ret_stack := ft :: !ret_stack;
+      List.map semantic dl;
+      List.map semantic sl;
+      ret_stack := List.tl !ret_stack;
+      scope_delete ()
   | Empty_stmt -> ()
-  | Expression(e) -> scope_check e
-  | Stmt_block (h::t) -> check h; check Stmt_block(t)
-  | If(e, s1, None) -> scope_check e; if ((typecheck e) == Type(Bool, 0)) then (check s1) (* else raise exc *)
-  | If(e, s1, Some(s2)) -> if (typecheck e) == Type(Bool, 0) then (check s1; check s2) (* else raise exc *)  
-  | For(None, e1, e2, e3, s) -> scope_check e1; scope_check e3; if ((typecheck e2) == Type(Bool, 0) or e2 == None) then check s
-  |
+  | Expression(e) -> check e NULL NULL
+  | Stmt_block(sl) -> 
+      scope_add ();
+      List.map semantic sl;
+      scope_delete ()
+  | If(e, s, None) -> 
+      check e (Type(Bool, 0)) RVal;
+      semantic s
+  | If(e, s1, Some(s2)) -> 
+      check e (Type(Bool, 0)) RVal;
+      semantic s1;
+      semantic s2
+  | For(None, e1, e2, e3, s) ->
+      let foo (e, t1, t2) =
+        match e with 
+        | None -> ()
+        | Some(e) -> check e t1 t2
+      in 
+      List.map foo ([(e3, NULL, NULL); (e2, (Type(Bool, 0)), RVal); (e3, NULL, NULL)]);
+      semantic s
+  | For(Some(Id(id)), e1, e2, e3, s) -> 
+      let foo (e, t1, t2) =
+        match e with 
+        | None -> ()
+        | Some(e) -> check e t1 t2
+      in 
+      List.map foo ([(e3, NULL, NULL); (e2, (Type(Bool, 0)), RVal); (e3, NULL, NULL)]);
+      if (symbol_find id false) = NULL then symbol_push (Symbol(id, (Type(Label, 0)), None, !scope))
+      else semantic_errors := ("Label " ^ id ^ " already exists", !Lexer.line_number) :: !semantic_errors;
+      semantic s
+  | Continue(None)-> ()
+  | Continue(Some(Id(s))) ->
+    if (symbol_find s true) = NULL 
+      then semantic_errors := ("Label " ^ s ^ " does not exist", !Lexer.line_number) :: !semantic_errors
+  | Break(None) -> ()
+  | Break(Some(Id(s))) -> 
+      if (symbol_find s true) = NULL 
+        then semantic_errors := ("Label " ^ s ^ " does not exist", !Lexer.line_number) :: !semantic_errors
+  | Return(None) -> ()
+  | Return(Some(e)) ->
+      check e (List.hd !ret_stack) RVal
+  | _ -> raise (Semantic_Error ("Semantic was called for sth weird"))
+
+let print_semantic_error () =
+  match !semantic_errors with
+  | [] -> raise End_of_semantic
+  | _ ->  
+    let f (s,l) =
+    "\nSemantic Error:" ^ s ^ " at line: " ^ (string_of_int l)
+    in
+    raise (Semantic_Error (List.fold_left (^) " " (List.map f (List.rev !semantic_errors))))
+

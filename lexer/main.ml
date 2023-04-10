@@ -1,5 +1,7 @@
 open Lexer
 open Parser
+open Semantic
+open Symbol
 
 (* let main () =
   try
@@ -25,9 +27,14 @@ let main () =
     with
     | Parsing.Parse_error -> print_endline("Syntax error at line: " ^ (string_of_int !line_number))
     | Lexer.Lexical_Error p -> print_endline(p)
-    | End_of_file -> Ast.print !Ast.syntaxTree (* exit 0 *)
-        (* let _ = Printexc.print main () *)
-    (* sematic ast;
-       print_sem_error *)
-      
+    | End_of_file -> print_endline("Syntax analysis OK\n");
+    try 
+      List.map Semantic.semantic (List.map Symbol.decl_to_sem !Ast.syntaxTree);
+      Semantic.print_semantic_error ()
+    with  
+    | Semantic.Semantic_Error p -> print_endline(p)
+    | End_of_semantic -> print_endline("Semantic analysis OK\n") 
+
+
 let _ = main(); Ast.print !Ast.syntaxTree
+(* let _ = Printexc.print main () *)
