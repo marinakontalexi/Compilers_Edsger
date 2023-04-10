@@ -22,7 +22,7 @@ let main () =
     try
       let lexbuf = Lexing.from_channel cin in
         while true do
-          Parser.program Lexer.eds_lex lexbuf
+          Parser.program Lexer.eds_lex lexbuf;
         done
     with
     | Parsing.Parse_error -> print_endline("Syntax error at line: " ^ (string_of_int !line_number))

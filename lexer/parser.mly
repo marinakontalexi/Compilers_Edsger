@@ -204,7 +204,7 @@ binary_expression: expression TIMES expression { Bin_operation($1, TIMES, $3) }
                  | expression NEQ expression { Bin_operation($1, NEQ, $3) }
                  | expression LOGICAL_AND expression { Bin_operation($1, LOGICAL_AND, $3) }
                  | expression LOGICAL_OR expression { Bin_operation($1, LOGICAL_OR, $3) }
-                 | expression COMMA expression { Bin_operation($1, COMMA, $3)}
+               //   | expression COMMA expression { Bin_operation($1, COMMA, $3)}
 ;
 
 unary_assignment: expression INCR { Un_assignment_right($1, INCR) }

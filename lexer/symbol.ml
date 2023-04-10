@@ -93,11 +93,11 @@ let symbol_find id flag =   (* flag true: global search *)
   let p =
     try 
       Hashtbl.find symbol_hash (Hashtbl.hash id)
-    with Not_found -> print_endline("Not found"); NULL
+    with Not_found -> NULL
   in
     try 
     let Symbol(curr, ft, pl, s) = find_help p id in
       if flag || (s = !scope) then Symbol(curr, ft, pl, s)
       else NULL
-    with invalid_arg -> print_endline("Invalid"); NULL
+    with invalid_arg -> NULL
   

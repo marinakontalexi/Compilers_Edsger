@@ -100,7 +100,7 @@ rule eds_lex = parse
     | D+ as const_int { CONST_I (int_of_string const_int) }
     | D+ "." D+ (("e" | "E") ("+" | "-")?  D+)? as const_f { CONST_F (float_of_string const_f) }
     (* | ''' ((common_c | escape) as c) '''  { CONST_C c } *)
-    | '"' (common_c | escape)+ '"' as const_s { CONST_S const_s }
+    | '\"' (common_c | escape)+ '\"' as const_s { CONST_S const_s }
     | ['=' '!' '+' '-' '*' '/' '%' '>' '<']'=' | "++" | "--" | "&&" | "||" 
         as op2 { Hashtbl.find operatoreq_table op2 }
     | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] 
@@ -112,7 +112,7 @@ rule eds_lex = parse
     (* | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf } *)
     | eof { if !lexical_error_found then               
                 let f (c,l) =
-                    "\nUnrecognized character:" ^ (String.make 1 c) ^ " at line: " ^ (string_of_int l)
+                    "Unrecognized character:" ^ (String.make 1 c) ^ " at line: " ^ (string_of_int l) ^ "\n"
                 in
                     raise (Lexical_Error (List.fold_left (^) " " (List.map f (List.rev !lexical_errors))))
             else

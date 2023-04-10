@@ -5,7 +5,7 @@ type bin_op = TIMES | DIV | MOD | PLUS | MINUS
 type un_assign = INCR | DECR
 type bin_assign = ASSIGN | TIMESEQ | DIVEQ | MODEQ | PLUSEQ | MINUSEQ
 type id = Id of string
-type basic_type = Int | Char | Bool | Double | Void | Label
+type basic_type = Int | Char | Bool | Double | Void | Label | Any
 type fulltype = Type of basic_type * int | NULL(*pointer list if we use star*)
 type expr = Id of string
           | True | False | NULL 
@@ -49,13 +49,13 @@ let fulltype_to_string ft =
     | p -> f ("*" ^ rc) (p-1)
   in
   match ft with
-  | Type(Int, p) -> "Int" ^ (f "" p)
-  | Type(Char, p) -> "Char" ^ (f "" p) 
-  | Type(Bool, p) -> "Bool" ^ (f "" p)  
-  | Type(Double, p) -> "Double" ^ (f "" p)
-  | Type(Void, p) -> "Void" ^ (f "" p)
+  | Type(Int, p) -> "INT" ^ (f "" p)
+  | Type(Char, p) -> "CHAR" ^ (f "" p) 
+  | Type(Bool, p) -> "BOOL" ^ (f "" p)  
+  | Type(Double, p) -> "DOUBLE" ^ (f "" p)
+  | Type(Void, p) -> "VOID" ^ (f "" p)
   | Type(Label, p) -> "Label" 
-  | _ -> ""
+  | Type(Any, p) -> "INT, CHAR, BOOL or DOUBLE" ^ (f "" p)
 
 let tabs = ref 0
 
@@ -183,7 +183,7 @@ and print_expr_opt e =
 and print_expr x = 
   print_tabs !tabs; print_endline("Expression {"); incr tabs;
   match x with
-  | Id(s) -> print_tabs !tabs; print_endline("String " ^ s); decr tabs; print_tabs !tabs; print_endline("}");
+  | Id(s) -> print_tabs !tabs; print_endline("Identifier " ^ s); decr tabs; print_tabs !tabs; print_endline("}");
   | True -> print_tabs !tabs; print_endline("True"); decr tabs; print_tabs !tabs; print_endline("}");
   | False -> print_tabs !tabs; print_endline("Flase"); decr tabs; print_tabs !tabs; print_endline("}");
   | NULL -> print_tabs !tabs; print_endline("NULL") ; decr tabs; print_tabs !tabs; print_endline("}");

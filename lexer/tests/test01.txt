@@ -1,8 +1,6 @@
-void g(int x) {
-    return;
-}
-void giorgos(int y) {
-bool x;
-g(x);
-return;
+int giorgos(bool x) {
+int a;
+a = new int[1];
+giorgos(x) = true;
+return 1;
 }
