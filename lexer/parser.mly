@@ -2,7 +2,12 @@
 %{
     open Printf
     open Ast
-    open Lexer     
+    open Lexer 
+
+    let rec expr_to_list expression =
+     match expression with 
+     | Bin_operation(e1, COMMA, e2) -> (expr_to_list e1) @ (expr_to_list e2)
+     | _ -> [expression]    
 %}
 
 /* declarations */
@@ -103,9 +108,9 @@ function_declaration: fulltype ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun
 ;
 
 function_definition: fulltype ID L_PAREN parameter_list R_PAREN  
-                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition($1, Id($2), $4, List.rev $7, List.rev $8) }
+                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition($1, Id($2), List.rev $4, List.rev $7, List.rev $8) }
                    | VOID ID L_PAREN parameter_list R_PAREN  
-                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition(Type(Void, 0), Id($2), $4, List.rev $7, List.rev $8) }
+                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition(Type(Void, 0), Id($2), List.rev $4, List.rev $7, List.rev $8) }
 ;
 
 
@@ -160,8 +165,8 @@ expression: ID { Id($1) }
           | CONST_F { FLOAT($1) }
           | CONST_S { STRING($1) }
           | ID L_PAREN R_PAREN { Fun_call(Id($1), [])}
-          | ID L_PAREN expression_list R_PAREN { Fun_call(Id($1), List.rev $3) }
-          | expression L_BRACK expression R_BRACK { Table_call($1, $3) }   /* mono gia *id[expr]?? */
+          | ID L_PAREN expression R_PAREN { Fun_call(Id($1), (expr_to_list $3)) }
+          | expression L_BRACK expression R_BRACK { Table_call($1, $3) } 
           | unary_expression { $1 }
           | binary_expression { $1 }
           | unary_assignment { $1 }
@@ -177,9 +182,9 @@ expression: ID { Id($1) }
 //           | L_BRACK expression R_BRACK { Some($2) }
 // ;
 
-expression_list: expression { [$1] }
-               | expression_list COMMA expression { $3::$1 }
-;
+// expression_list: expression { [$1] }
+//                | expression_list COMMA expression { $3::$1 }
+// ;
 
 constant_expression: expression { Const_expr($1) }
 ;
@@ -204,7 +209,7 @@ binary_expression: expression TIMES expression { Bin_operation($1, TIMES, $3) }
                  | expression NEQ expression { Bin_operation($1, NEQ, $3) }
                  | expression LOGICAL_AND expression { Bin_operation($1, LOGICAL_AND, $3) }
                  | expression LOGICAL_OR expression { Bin_operation($1, LOGICAL_OR, $3) }
-               //   | expression COMMA expression { Bin_operation($1, COMMA, $3)}
+                 | expression COMMA expression { Bin_operation($1, COMMA, $3)}
 ;
 
 unary_assignment: expression INCR { Un_assignment_right($1, INCR) }

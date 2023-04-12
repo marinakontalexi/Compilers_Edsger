@@ -72,6 +72,16 @@
             '{', L_BRACE;
             '}', R_BRACE]
 
+    let escape_table = Hashtbl.create 10
+        let _ = 
+            List.iter (fun (op, tok) -> Hashtbl.add escape_table op tok)
+            ["\'\\n\'", CONST_C '\n';
+            "\'\\t\'", CONST_C '\t';
+            "\'\\r\'", CONST_C '\r';
+            "\'\\\\'", CONST_C '\\';
+            "\'\\\'\'", CONST_C '\'';
+            "\'\\\"\'", CONST_C '\"';
+            "\'\\0\'", CONST_C (Char.chr 0)]
     (* let t_eof = 0
     let t_id = 1018
     let t_const_i = 1019
@@ -87,8 +97,8 @@ let D = ['0'-'9']
 let W = [' ' '\t' '\r' '\n']
 let HEX = ['0'-'9' 'A'-'F']
 let common_c = [^ '\'' '\"' '\\' '\n']
-let escape = '\\' (['n' 't' 'r' '0' '\\' '\'' '"'] | 'x' HEX HEX)
-(* let stringescape = '\\' (['n' 't' 'r' '0' '\\' '\'' '"'] | 'x' HEX HEX) *)
+let escape = ['n' 't' 'r' '0' '\\' '\'' '\"']
+let escape_str = '\\'
 
 (* rules section *)
 rule eds_lex = parse
@@ -99,8 +109,16 @@ rule eds_lex = parse
               ID id }
     | D+ as const_int { CONST_I (int_of_string const_int) }
     | D+ "." D+ (("e" | "E") ("+" | "-")?  D+)? as const_f { CONST_F (float_of_string const_f) }
-    (* | ''' ((common_c | escape) as c) '''  { CONST_C c } *)
-    | '\"' (common_c | escape)+ '\"' as const_s { CONST_S const_s }
+    | '\'' (common_c as c) '\'' as s { CONST_C c }
+    | "\'\\" (escape as c) "\'" as e {
+        try
+        Hashtbl.find escape_table e 
+        with Not_found ->  (lexical_error_found := true;
+                            lexical_errors := (c, !line_number) :: !lexical_errors;
+                            eds_lex lexbuf)
+    }
+    | "\'\\" 'x' (HEX as h1) (HEX as h2) '\'' { let i = int_of_string ("0x" ^ (String. make 1 h1) ^ (String. make 1 h2)) in CONST_C (Char.chr i)}
+    | '\"' (common_c | escape_str)* '\"' as const_s { CONST_S const_s }
     | ['=' '!' '+' '-' '*' '/' '%' '>' '<']'=' | "++" | "--" | "&&" | "||" 
         as op2 { Hashtbl.find operatoreq_table op2 }
     | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] 

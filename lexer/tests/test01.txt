@@ -1,6 +1,8 @@
-int giorgos(bool x) {
-int a;
-a = new int[1];
-giorgos(x) = true;
-return 1;
+void main() {
+char c;
+char *s;
+s = "";
 }
+
+    
+

@@ -1,4 +1,6 @@
-
+int readInteger();
+void writeString(char* s);
+void writeReal(double k);
 void main()
 {
 
