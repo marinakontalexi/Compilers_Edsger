@@ -25,7 +25,7 @@ let rec codegen_expr (expression:expr) =
   let name = expr_to_string expression in
   match expression with
   | NULL-> ()
-  | Id(s) -> ()
+  | Id(s) -> (*lookup id; id.value*)
   | True -> const_int bool_type 1
   | False -> const_int bool_type 0
   | INT(i) -> const_int int_type i
@@ -53,12 +53,12 @@ let rec codegen_expr (expression:expr) =
     match op with
     | PLUS ->
       if (size_of val_type) = (size_of (pointer_type int_type)) then
-        build_gep e1_val e2_val "ptraddtmp" builder
+        build_gep e1_val [|e2_val|] "ptraddtmp" builder
       else if val_type = int_type then build_add e1_val e2_val "addtmp" builder
       else build_fadd e1_val e2_val "addtmp" builder
     | MINUS ->
       if (size_of val_type) = (size_of (pointer_type int_type)) then
-        build_gep e1_val e2_val "ptraddtmp" builder
+        build_gep e1_val [|e2_val|] "ptraddtmp" builder
       else if val_type = int_type then build_sub e1_val e2_val "subtmp" builder
       else build_fsub e1_val e2_val "subtmp" builder
     | TIMES ->
