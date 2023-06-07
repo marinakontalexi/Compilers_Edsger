@@ -24,25 +24,55 @@ let non_type = void_type llctx
 let rec codegen_expr (expression:expr) = 
   let name = expr_to_string expression in
   match expression with
-  | NULL-> ()
+  | NULL-> const_null pointer_type int_type
+
+  (* -------------- *)
+  (* --- TO SEE --- *)
+  (* -------------- *)
   | Id(s) -> (*lookup id; id.value*)
+    let v = try Hashtbl.find named_values s with
+      | Not_found -> raise (Error "unknown variable name")
+    in build_load v s builder (* do we need this? *)
+
   | True -> const_int bool_type 1
   | False -> const_int bool_type 0
   | INT(i) -> const_int int_type i
   | CHAR(c) -> let ascii = Char.code c in const_int char_type ascii 
   | FLOAT(f) -> const_float double_type f
-  | STRING(s) -> () 
-  | Fun_call
+  | STRING(s) -> 
+    let str_init = const_stringz context s in 
+    let str = define_global ".str" str_init context in
+    let constzero = const_int int_type 0 in
+    build_gep str [|constzero|] "strtmp" buidler
+
+  (* -------------- *)
+  (* --- TO SEE --- *)
+  (* -------------- *)
+  | Fun_call(callee, args) -> (* do we need scopes here? *)
+    let callee =
+      match lookup_function callee the_module with
+      | Some callee -> callee
+      | None -> raise (Error "unknown function referenced")
+    in
+    let parameters = params callee in
+    if Array.length parameters == Array.length args then () else
+      raise (Error "incorrect # arguments passed");
+      (* codegen each argument and call the function *)
+    let args = Array.map codegen_expr args in
+    build_call callee args "calltmp" builder 
+
   | Table_call(e1, e2) -> ()
 
   | Un_operation(op, e) ->
-    
     match op with
-    | AND
-    | POINT
-    | EXC
-    | POS
-    | NEG ->()
+    | AND -> codegen_expr e
+    | POINT -> ()
+    | EXC -> ()
+    | POS -> codegen_expr e
+    | NEG ->
+      let v = codegen_expr e1 in
+      if ((type_of e1_val) = int_type) then build_neg v "negtmp" builder
+      else build_fneg v "negtmp" builder
 
   | Bin_operation(e1, op, e2) ->
     let e1_val = codegen_expr e1 in
