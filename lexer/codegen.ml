@@ -13,6 +13,7 @@ let builder = builder context
 (* The Codegen.named_values map keeps track of which values are defined in the current scope and what their LLVM representation is. 
    (In other words, it is a symbol table for the code). *)
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
+let labels:(string, {llbasicblock; llbasicblock}) Hash_table.t = Hash_table.create 10
 
 (* types *)
 let int_type = i16_type llctx
@@ -24,8 +25,8 @@ let non_type = void_type llctx
 let rec codegen_stmt (statement:stmt) = 
   match statement with
   | Empty_stmt -> ()
-  | Expression(e)
-  | Stmt_block(sl) -> ()
+  | Expression(e) -> codegen_expr e
+  | Stmt_block(sl) -> List.map codegen_stmt sl
 
   | If(e,s_then, s_else) ->
       let cond = codegen_expr e in
@@ -76,9 +77,6 @@ let rec codegen_stmt (statement:stmt) =
       phi
 
   | For(label, init, cond, step, s) ->
-    ignore @@ match label with
-      | Some(id) -> (* Add label to label scope? *)
-      | None -> ();
     let start_val = match init with
       | Some(e) -> codegen_expr e 
       | None -> () in
@@ -87,10 +85,15 @@ let rec codegen_stmt (statement:stmt) =
     let f = block_parent prev_bb in
     let loopHeader_bb = append_block context "loopHeader_bb" in
     let loop_bb = append_block context "loop" f in
-    let after_bb = append_block context "afterloop" the_function in
+    let step_bb = append_block context "loopstep" f in
+    let after_bb = append_block context "afterloop" f in
+    ignore (match label with
+      (* Add label to labels *)
+      | Some(id) -> Hashtbl.add labels id {cont: step_bb; break: after_bb}
+      | None -> Hashtbl.add labels "currentFor" {step_bb; after_bb});
     ignore (build_br loopHeader_bb builder);
 
-    position_at_end loopHeader_bb bldr;
+    position_at_end loopHeader_bb builder;
     let end_cond = match cond with
       | Some(e) -> codegen_expr e
       | None -> () in
@@ -98,24 +101,45 @@ let rec codegen_stmt (statement:stmt) =
     let cond_val = build_icmp Icmp.Ne cond zero "forendcond" builder in
     ignore (build_cond_br end_cond loop_bb after_bb builder);
 
-    position_at_end loop_bb bldr;
+    position_at_end loop_bb builder;
     (* do we need to add i in Hash_table? *)
     let variable = build_phi [(start_val, loopHeader_bb)] "i" builder in
     ignore (codegen_stmt s);
+    ignore (build_br step_bb builder);
+
+    position_at_end step_bb builder;
     let step_val = match step with
       | Some(e) -> codegen_expr e
       | None -> () (* Default value? *)
     let next_var = build_add variable step_val "nextvar" builder in
-    let loop_end_bb = insertion_block builder in
-    ignore (build_br loopHeader_bb builder)
+    let loop_end_bb = insertion_block builder in (* this is used for PHI node *)
+    ignore (build_br loopHeader_bb builder);
     
     position_at_end after_bb builder;
     add_incoming (next_var, loop_end_bb) variable;
+    
+    ignore (match label with 
+      | Some(l) -> ()
+      | None -> Hashtbl.remove labels "currentFor")
 
+    (* ti epistrefei to for? *)
 
-  | Continue(id)
-  | Break(id)
-  | Return(e) -> ()
+  | Continue(label) ->
+    let jumpLoop = match label with
+      | Some(l) -> Hashtbl.find labels l 
+      | None -> Hashtbl.find lables "currentFor" in
+    ignore (build_br jumpLoop.cont builder)
+  | Break(id) ->
+    let jumpLoop = match label with
+      | Some(l) -> Hashtbl.find labels l 
+      | None -> Hashtbl.find lables "currentFor" in
+    ignore (build_br jumpLoop.break builder)
+  | Return(e) -> (* theloume na epistrefei kati?  mipos na valoume ignore? *) 
+    match e with
+      | Some(ret) -> 
+          let vl = codegen_expr ret in
+          build_ret vl buidler 
+      | None -> build_ret_void buidler
 
 let rec codegen_expr (expression:expr) = 
   let name = expr_to_string expression in
