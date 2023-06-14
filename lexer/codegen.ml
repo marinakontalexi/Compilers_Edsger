@@ -22,124 +22,96 @@ let double_type = x86fp80_type llctx
 let bool_type = i1_type llctx
 let non_type = void_type llctx
 
+let rec codegen_decl (decl : declaration) = 
+  match decl with
+  | Var_declaration(ft, dl)
+  | Fun_declaration(ft,id,pl)
+  | Fun_definition(ft,id,pl,dl,sl) -> ()
+
 let rec codegen_stmt (statement:stmt) = 
   match statement with
   | Empty_stmt -> ()
-  | Expression(e) -> codegen_expr e
-  | Stmt_block(sl) -> List.map codegen_stmt sl
-
+  | Expression(e) -> ignore (codegen_expr e)
+  | Stmt_block(sl) -> ignore (List.map codegen_stmt sl)
   | If(e,s_then, s_else) ->
       let cond = codegen_expr e in
       let zero = const_int bool_type 0 in
       let cond_val = build_icmp Icmp.Ne cond zero "ifcond" builder in
-      (* saving a pointer to the first block which we’ll need to build a conditional branch later *)
       let start_bb = insertion_block builder in
-      (* f = current Function object that is being built *)
       let f = block_parent start_bb in
       let then_bb = append_block context "then" f in
-      
-      (* since the “then” block is empty, it also starts out by inserting at the beginning of the block *)
-      position_at_the_end then_bb buidler;
-      let then_val = codegen_stmt s_then in
-      (* Codegen of 'then' can change the current block, update then_bb for the
-      * phi. We create a new name because one is used for the phi node, and the
-      * other is used for the conditional branch. *)
-      let new_then_bb = insertion_block builder in
-
-      let else_bb = append_block context "else" the_function in
-      position_at_end else_bb builder;
-      let else_val = match s_else with
-      | Some s -> codegen_stmt s
-      | None -> () in
-      let new_else_bb = insertion_block builder in
-
-      let merge_bb = append_block context "ifcont" the_function in
-      position_at_end merge_bb builder;
-      (* create the PHI node and set up the block/value pairs for the PHI *)
-      let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
-      let phi = build_phi incoming "iftmp" builder in
-
-      (* Return to the start block to add the conditional branch. *)
-      position_at_end start_bb builder;
+      let else_bb = append_block context "else" f in
+      let end_if = append_block context "endif" f in
       ignore (build_cond_br cond_val then_bb else_bb builder);
 
-      (* Note that creating new blocks does not implicitly affect the IRBuilder, 
-       * so it is still inserting into the block that the condition went into.*)
+      position_at_the_end then_bb buidler;
+      ignore (codegen_stmt s_then);
+      ignore (build_br end_if builder);
+      
+      position_at_end else_bb builder;
+      ignore(match s_else with
+      | Some s -> codegen_stmt s
+      | None -> ());
+      ignore (build_br end_if builder);
 
-      (* Set a unconditional branch at the end of the 'then' block and the
-      * 'else' block to the 'merge' block. *)
-      position_at_end new_then_bb builder; ignore (build_br merge_bb builder);
-      position_at_end new_else_bb builder; ignore (build_br merge_bb builder);
-
-      (* Finally, set the builder to the end of the merge block. *)
-      position_at_end merge_bb builder;
-
-      phi
+      ignore (position_at_end end_if builder)
 
   | For(label, init, cond, step, s) ->
-    let start_val = match init with
+    ignore (match init with
       | Some(e) -> codegen_expr e 
-      | None -> () in
-      
+      | None -> () in);
     let prev_bb = insertion_block builder in
     let f = block_parent prev_bb in
-    let loopHeader_bb = append_block context "loopHeader_bb" in
-    let loop_bb = append_block context "loop" f in
-    let step_bb = append_block context "loopstep" f in
-    let after_bb = append_block context "afterloop" f in
+    let loopcond_bb = append_block context "loopcond" in
+    let loopbody_bb = append_block context "loopbody" f in
+    let loopstep_bb = append_block context "loopstep" f in
+    let endfor_bb = append_block context "endfor" f in
     ignore (match label with
       (* Add label to labels *)
-      | Some(id) -> Hashtbl.add labels id {cont: step_bb; break: after_bb}
-      | None -> Hashtbl.add labels "currentFor" {step_bb; after_bb});
-    ignore (build_br loopHeader_bb builder);
+      | Some(id) -> Hashtbl.add labels id {cont: loopstep_bb; break: endfor_bb}
+      | None -> Hashtbl.add labels "currentFor" {cont: loopstep_bb; break: endfor_bb});
+    ignore (build_br loopcond_bb builder);
 
-    position_at_end loopHeader_bb builder;
+    position_at_end loopcond_bb builder;
     let end_cond = match cond with
       | Some(e) -> codegen_expr e
       | None -> () in
     let zero = const_int bool_type 0 in
     let cond_val = build_icmp Icmp.Ne cond zero "forendcond" builder in
-    ignore (build_cond_br end_cond loop_bb after_bb builder);
+    ignore (build_cond_br end_cond loopbody_bb endfor_bb builder);
 
-    position_at_end loop_bb builder;
-    (* do we need to add i in Hash_table? *)
-    let variable = build_phi [(start_val, loopHeader_bb)] "i" builder in
+    position_at_end loopbody_bb builder;
     ignore (codegen_stmt s);
-    ignore (build_br step_bb builder);
+    ignore (build_br loopstep_bb builder);
 
-    position_at_end step_bb builder;
-    let step_val = match step with
-      | Some(e) -> codegen_expr e
-      | None -> () (* Default value? *)
-    let next_var = build_add variable step_val "nextvar" builder in
-    let loop_end_bb = insertion_block builder in (* this is used for PHI node *)
-    ignore (build_br loopHeader_bb builder);
+    position_at_end loopstep_bb builder;
+    ignore (match step with
+      | Some(e) -> codegen_expr e2
+      | None -> ()); 
+    ignore (build_br loopcond_bb builder);
     
-    position_at_end after_bb builder;
-    add_incoming (next_var, loop_end_bb) variable;
-    
+    ignore (position_at_end endfor_bb builder);
+
     ignore (match label with 
-      | Some(l) -> ()
+      | Some(l) -> Hashtbl.remove labels l
       | None -> Hashtbl.remove labels "currentFor")
-
-    (* ti epistrefei to for? *)
 
   | Continue(label) ->
     let jumpLoop = match label with
       | Some(l) -> Hashtbl.find labels l 
       | None -> Hashtbl.find lables "currentFor" in
     ignore (build_br jumpLoop.cont builder)
-  | Break(id) ->
+  | Break(label) ->
     let jumpLoop = match label with
       | Some(l) -> Hashtbl.find labels l 
       | None -> Hashtbl.find lables "currentFor" in
     ignore (build_br jumpLoop.break builder)
-  | Return(e) -> (* theloume na epistrefei kati?  mipos na valoume ignore? *) 
-    match e with
+  | Return(e) -> 
+    ignore (match e with
       | Some(ret) -> 
           let vl = codegen_expr ret in
           build_ret vl buidler 
-      | None -> build_ret_void buidler
+      | None -> build_ret_void buidler)
 
 let rec codegen_expr (expression:expr) = 
   let name = expr_to_string expression in
@@ -283,4 +255,3 @@ let rec codegen_expr (expression:expr) =
   | New(ft, None)
   | New(Type(t, n), Some(e))
   | Delete(e) ->()
-
