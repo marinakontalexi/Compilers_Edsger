@@ -10,6 +10,8 @@ let the_module = create_module context "program_module" (*contains all of the fu
    Instances of the IRBuilder class keep track of the current place to insert instructions and has methods to create new instructions. *)
 let builder = builder context
 
+(* let initial_block = ?? *)
+
 (* The Codegen.named_values map keeps track of which values are defined in the current scope and what their LLVM representation is. 
    (In other words, it is a symbol table for the code). *)
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
@@ -23,16 +25,16 @@ let bool_type = i1_type llctx
 let non_type = void_type llctx
 
 (* alloca functions *)
-let create_entry_block_alloca the_function f var_name =
+let create_entry_block_alloca the_function ft var_name =
   let builder = builder_at context (instr_begin (entry_block the_function)) in
-  build_alloca f var_name builder
+  build_alloca ft var_name builder
 
 let create_argument_allocas the_function pl =
-  let args = Array.of_list (List.map (fun Param(_, f, Id(s)) -> (ft_to_llvmtype f, s)) pl)
+  let args = Array.of_list (List.map (fun Param(_, ft, Id(s)) -> (ft_to_llvmtype ft, s)) pl)
   List.map (fun i ai ->
-    let (f, var_name) = args.(i) in
+    let (ft, var_name) = args.(i) in
     (* Create an alloca for this variable. *)
-    let alloca = create_entry_block_alloca the_function f var_name in
+    let alloca = create_entry_block_alloca the_function ft var_name in
 
     (* Store the initial value into the alloca. *)
     ignore(build_store ai alloca builder);
@@ -55,6 +57,21 @@ let rec ft_to_llvmtype ft =
 let rec codegen_decl (decl : declaration) = 
   match decl with
   | Var_declaration(ft, dl) ->
+    let currentBlock = insertion_block builder in
+    position_at_the_end currentBlock buidler;
+    (* let f = block_parent currentBlock in *)
+    let llvmtype = ft_to_llvmtype ft
+    let mapf Declarator(Id(var_name), ce) = match ce with 
+      | None -> 
+        let alloca = build_alloca llvmtype var_name builder in
+        Hashtbl.add named_values var_name alloca
+      | Some(e) -> 
+        let vl = codegen_expr e in
+        let alloca = build_array_alloca llvmtype vl var_name builder in
+        Hashtbl.add named_values var_name alloca 
+
+    List.map mapf dl
+    
   | Fun_declaration(ft,Id(name),pl) ->
     let pltype = List.map (fun Param(c, f, _) -> 
                             match c with 
