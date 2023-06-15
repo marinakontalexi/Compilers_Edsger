@@ -61,16 +61,17 @@ let rec codegen_decl (decl : declaration) =
     position_at_the_end currentBlock buidler;
     (* let f = block_parent currentBlock in *)
     let llvmtype = ft_to_llvmtype ft
-    let mapf Declarator(Id(var_name), ce) = match ce with 
+    let mapf Declarator(Id(var_name), ce) = 
+      match ce with 
       | None -> 
         let alloca = build_alloca llvmtype var_name builder in
         Hashtbl.add named_values var_name alloca
       | Some(e) -> 
-        let vl = codegen_expr e in
-        let alloca = build_array_alloca llvmtype vl var_name builder in
+        let n = codegen_expr e in
+        let alloca = build_array_alloca llvmtype n var_name builder in
         Hashtbl.add named_values var_name alloca 
-
-    List.map mapf dl
+      in
+    let _ = List.map mapf dl in non_type
     
   | Fun_declaration(ft,Id(name),pl) ->
     let pltype = List.map (fun Param(c, f, _) -> 
