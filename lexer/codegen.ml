@@ -22,11 +22,101 @@ let double_type = x86fp80_type llctx
 let bool_type = i1_type llctx
 let non_type = void_type llctx
 
+(* alloca functions *)
+let create_entry_block_alloca the_function f var_name =
+  let builder = builder_at context (instr_begin (entry_block the_function)) in
+  build_alloca f var_name builder
+
+let create_argument_allocas the_function pl =
+  let args = Array.of_list (List.map (fun Param(_, f, Id(s)) -> (ft_to_llvmtype f, s)) pl)
+  List.map (fun i ai ->
+    let (f, var_name) = args.(i) in
+    (* Create an alloca for this variable. *)
+    let alloca = create_entry_block_alloca the_function f var_name in
+
+    (* Store the initial value into the alloca. *)
+    ignore(build_store ai alloca builder);
+
+    (* Add arguments to variable symbol table. *)
+    Hashtbl.add named_values var_name alloca;
+  ) (params the_function)
+
+let rec ft_to_llvmtype ft =
+  match ft with
+  | Type(Int, 0) -> int_type
+  | Type(Char, 0) -> char_type
+  | Type(Double, 0) -> double_type
+  | Type(Bool, 0) -> bool_type
+  | Type(t, n) ->
+    match t with
+    Int | Char | Double | Bool -> pointer_type (ft_to_llvmtype (Type(t, n-1)))
+  | _ -> non_type
+
 let rec codegen_decl (decl : declaration) = 
   match decl with
-  | Var_declaration(ft, dl)
-  | Fun_declaration(ft,id,pl)
-  | Fun_definition(ft,id,pl,dl,sl) -> ()
+  | Var_declaration(ft, dl) ->
+  | Fun_declaration(ft,Id(name),pl) ->
+    let pltype = List.map (fun Param(c, f, _) -> 
+                            match c with 
+                            | Byvalue -> ft_to_llvmtype f
+                            | Byref -> pointer_type (ft_to_llvmtype f)) pl in
+    let args = Array.of_list pltype in
+    let funtype = function_type (ft_to_llvmtype ft) args in
+    let f =
+      match lookup_function name the_module with
+      | None -> declare_function name funtype the_module
+      (* If 'f' conflicted, there was already something named 'name'. If it
+       * has a body, don't allow redefinition or reextern. *)
+      | Some f ->
+          (* If 'f' already has a body, reject this. *)
+          if block_begin f <> At_end f then
+            raise (Error "redefinition of function");
+
+          (* If 'f' took a different number of arguments, reject. *)
+          if element_type (type_of f) <> ft then
+            raise (Error "redefinition of function with different # args");
+          f
+    in
+    (* Set names for all arguments. *)
+    Array.iteri (fun i a ->
+      let n = args.(i) in
+      set_value_name n a;
+      Hashtbl.add named_values n a;
+    ) (params f);
+    f
+
+  | Fun_definition(ft,id,pl,dl,sl) -> 
+    let the_function = codegen_decl (Fun_declaration(ft, id, pl)) in
+      (* If this is an operator, install it. 
+      begin match proto with
+      | Ast.BinOpPrototype (name, args, prec) ->
+          let op = name.[String.length name - 1] in
+          Hashtbl.add Parser.binop_precedence op prec;
+      | _ -> ()
+      end; *)
+
+      (* Create a new basic block to start insertion into. *)
+      let bb = append_block context "entry" the_function in
+      position_at_end bb builder;
+
+      try
+        (* Add all arguments to the symbol table and create their allocas. *)
+        create_argument_allocas the_function pl;
+
+        let ret_val = List.map codegen_decl dl in
+        let ret_val = List.map codegen_stmt sl in
+
+        (* Finish off the function. *)
+        let _ = build_ret ret_val builder in
+                                                                    (* what happens if there is a stmt after return? *)
+
+        (* Validate the generated code, checking for consistency. *)
+        Llvm_analysis.assert_valid_function the_function;
+        the_function
+
+      with e ->
+        delete_function the_function;
+        raise e
 
 let rec codegen_stmt (statement:stmt) = 
   match statement with
