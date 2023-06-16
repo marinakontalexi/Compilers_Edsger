@@ -1,5 +1,6 @@
 open Llvm
 open Ast
+open Address_records
 
 exception Error of string
 
@@ -30,17 +31,16 @@ let create_entry_block_alloca the_function ft var_name =
   build_alloca ft var_name builder
 
 let create_argument_allocas the_function pl =
-  let args = Array.of_list (List.map (fun Param(_, ft, Id(s)) -> (ft_to_llvmtype ft, s)) pl)
+  let args = Array.of_list (List.map (fun Param(_, ft, Id(s)) -> (ft_to_llvmtype ft, s)) pl) in
   List.map (fun i ai ->
     let (ft, var_name) = args.(i) in
-    (* Create an alloca for this variable. *)
     let alloca = create_entry_block_alloca the_function ft var_name in
-
     (* Store the initial value into the alloca. *)
     ignore(build_store ai alloca builder);
 
     (* Add arguments to variable symbol table. *)
-    Hashtbl.add named_values var_name alloca;
+    (* Hashtbl.add named_values var_name alloca; *)
+    ignore(Address_records.variable_push (var_name, alloca));
   ) (params the_function)
 
 let rec ft_to_llvmtype ft =
@@ -60,17 +60,17 @@ let rec codegen_decl (decl : declaration) =
     let currentBlock = insertion_block builder in
     position_at_the_end currentBlock buidler;
     (* let f = block_parent currentBlock in *)
-    let llvmtype = ft_to_llvmtype ft
+    let llvmtype = ft_to_llvmtype ft in
     let mapf Declarator(Id(var_name), ce) = 
+      let alloca = 
       match ce with 
-      | None -> 
-        let alloca = build_alloca llvmtype var_name builder in
-        Hashtbl.add named_values var_name alloca
+      | None -> build_alloca llvmtype var_name builder 
       | Some(e) -> 
         let n = codegen_expr e in
-        let alloca = build_array_alloca llvmtype n var_name builder in
-        Hashtbl.add named_values var_name alloca 
+        build_array_alloca llvmtype n var_name builder
       in
+      Address_records.variable_push (var_name, alloca)
+    in
     let _ = List.map mapf dl in non_type
     
   | Fun_declaration(ft,Id(name),pl) ->
@@ -78,8 +78,8 @@ let rec codegen_decl (decl : declaration) =
                             match c with 
                             | Byvalue -> ft_to_llvmtype f
                             | Byref -> pointer_type (ft_to_llvmtype f)) pl in
-    let args = Array.of_list pltype in
-    let funtype = function_type (ft_to_llvmtype ft) args in
+    let args_type = Array.of_list pltype in
+    let funtype = function_type (ft_to_llvmtype ft) args_type in
     let f =
       match lookup_function name the_module with
       | None -> declare_function name funtype the_module
@@ -95,15 +95,19 @@ let rec codegen_decl (decl : declaration) =
             raise (Error "redefinition of function with different # args");
           f
     in
-    (* Set names for all arguments. *)
-    Array.iteri (fun i a ->
-      let n = args.(i) in
-      set_value_name n a;
-      Hashtbl.add named_values n a;
-    ) (params f);
-    f
+    (* let plname = List.map (fun Param(_, _, id) -> id) in
+    let args_type = Array.of_list pltype in
+        (* Set names for all arguments. *)
+        Array.iteri (fun i a ->
+          let args = Array.of_list pl in
+          let n = args.(i) in
+          set_value_name n a;
+          ignore(Address_records.variable_push(n, a));
+        ) (params f); *)
+      f
 
   | Fun_definition(ft,id,pl,dl,sl) -> 
+    ignore(Address_records.function_add ());
     let the_function = codegen_decl (Fun_declaration(ft, id, pl)) in
       (* If this is an operator, install it. 
       begin match proto with
@@ -126,14 +130,16 @@ let rec codegen_decl (decl : declaration) =
 
         (* Finish off the function. *)
         let _ = build_ret ret_val builder in
-                                                                    (* what happens if there is a stmt after return? *)
+        (* what happens if there is a stmt after return? *)
 
         (* Validate the generated code, checking for consistency. *)
         Llvm_analysis.assert_valid_function the_function;
+        ignore(Address_records.function_delete());
         the_function
 
       with e ->
         delete_function the_function;
+        ignore(Address_records.function_delete());
         raise e
 
 let rec codegen_stmt (statement:stmt) = 
@@ -226,14 +232,9 @@ let rec codegen_expr (expression:expr) =
   match expression with
   | NULL-> const_null pointer_type int_type
 
-  (* -------------- *)
-  (* --- TO SEE --- *)
-  (* -------------- *)
-  (* alloca *)
-  | Id(s) -> (*lookup id; id.value*)
-    let v = try Hashtbl.find named_values s with
-      | Not_found -> raise (Error "unknown variable name")
-    in build_load v s builder 
+  | Id(s) -> 
+    let Var(_, alloca) = variable_find s
+    in build_load alloca s builder 
 
   | True -> const_int bool_type 1
   | False -> const_int bool_type 0
@@ -249,17 +250,13 @@ let rec codegen_expr (expression:expr) =
   (* -------------- *)
   (* --- TO SEE --- *)
   (* -------------- *)
-  | Fun_call(callee, args) -> (* do we need scopes here? *)
+  | Fun_call(Id(callee), args) -> 
     let callee =
       match lookup_function callee the_module with
       | Some callee -> callee
       | None -> raise (Error "unknown function referenced")
     in
-    let parameters = params callee in
-    if Array.length parameters == Array.length args then () else
-      raise (Error "incorrect # arguments passed");
-      (* codegen each argument and call the function *)
-    let args = Array.map codegen_expr args in
+    let args = Array.of_list (List.map codegen_expr args) in
     build_call callee args "calltmp" builder 
 
   | Table_call(e1, e2) -> 

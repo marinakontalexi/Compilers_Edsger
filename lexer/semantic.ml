@@ -193,6 +193,7 @@ let rec semantic node =
   | Fun_declaration(ft, Id(s), pl) ->
       symbol_push (Symbol(s, ft, Some(pl), !scope))
   | Fun_definition(ft, Id(s), pl, dl, sl) ->
+    (* TO SEE: check for previous declaration or definition *)
       symbol_push (Symbol(s, ft, Some(pl), !scope));
       scope_add ();
       let _ = List.map push_param pl in 
