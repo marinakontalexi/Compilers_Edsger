@@ -5,6 +5,9 @@ open Symbol
 open Print_fun
 open Lexing
 open Printf
+open Llvm
+open Llvm_analysis
+open Codegen
 
 (* let main () =
   try
@@ -37,7 +40,11 @@ let main () =
         Semantic.print_semantic_error ()
       with  
       | Semantic.Semantic_Error p -> print_endline p
-      | End_of_semantic -> print_endline "Semantic analysis OK\n")
+      | End_of_semantic -> 
+        print_endline "Semantic analysis OK\n");
+        let llm = List.map Codegen.codegen_decl !Ast.syntaxTree in
+        dump_module llm
+
 
 
 let _ = main(); Print_fun.print !Ast.syntaxTree
