@@ -1,24 +1,18 @@
 open Llvm
 open Ast
 open Address_records
+open Bool
 
 exception Error of string
 
+let exist_ret_stmt = ref false
 let context = global_context ()
-let the_module = create_module context "program_module" (*contains all of the functions and global variables*)
-
-(* The Codegen.builder object is a helper object that makes it easy to generate LLVM instructions. 
-   Instances of the IRBuilder class keep track of the current place to insert instructions and has methods to create new instructions. *)
+let the_module = create_module context "program_module"
 let builder = builder context
 
-(* let initial_block = ?? *)
-
-(* The Codegen.named_values map keeps track of which values are defined in the current scope and what their LLVM representation is. 
-   (In other words, it is a symbol table for the code). *)
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
 type labeltype = {mutable cont: llbasicblock; mutable break: llbasicblock}
 let labels:(string, labeltype) Hashtbl.t = Hashtbl.create 10
-(* let labels = Hashtbl.create 10 *)
 
 (* types *)
 let int_type = i16_type context
@@ -167,12 +161,16 @@ let create_argument_allocas the_function pl =
       (* SOMETHING SHOULD BE DIFFERENT BASED ON POSITION OF e *)
     | Un_assignment_left(INCR, e) 
     | Un_assignment_right(e, INCR)-> 
-      let e_val = codegen_expr e in
+      let e_val = match e with 
+      | Id(s) -> let Var(_, ret, _) = variable_find s in ret
+      | _ -> codegen_expr e in 
       let vl = codegen_expr (Bin_operation(e, PLUS, INT(1))) in
       build_store vl e_val builder
     | Un_assignment_left(DECR, e) 
     | Un_assignment_right(e, DECR) -> 
-      let e_val = codegen_expr e in
+      let e_val = match e with 
+      | Id(s) -> let Var(_, ret, _) = variable_find s in ret
+      | _ -> codegen_expr e in 
       let vl = codegen_expr (Bin_operation(e, MINUS, INT(1))) in
       build_store vl e_val builder
   
@@ -280,6 +278,7 @@ match statement with
     | None -> Hashtbl.find labels "currentFor" in
   ignore (build_br jumpLoop.break builder)
 | Return(e) -> 
+  exist_ret_stmt := true;
   ignore (match e with
     | Some(ret) -> 
         let vl = codegen_expr ret in
@@ -289,26 +288,27 @@ match statement with
     
 let rec codegen_decl (decl : declaration) = 
   match decl with
-  | Var_declaration(ft, dl) ->
-    print_endline("[ENTER] -> Var decl");
-    (* let currentBlock = insertion_block builder in *)
+  | Var_declaration(ft, dl) -> 
+    (* let currentBlock = insertion_block builder in
     
-    (* position_at_end currentBlock builder; *)
-    (* let f = block_parent currentBlock in *)
+    position_at_end currentBlock builder;
+    let f = block_parent currentBlock in *)
+    (* let builder = builder_at (instr_begin (entry_block the_function)) *)
     let llvmtype = ft_to_llvmtype ft in
     
     let mapf (Declarator(Id(var_name), ce)) = 
       let alloca = 
       match ce with 
-      | None -> build_alloca llvmtype var_name builder
+      (* IF SCOPE IS 0 THEN WE HAVE GLOBALS?*)
+      | None -> if !scope = 0 then (declare_global llvmtype var_name the_module) else (build_alloca llvmtype var_name builder)
       | Some(Const_expr(e)) -> 
         let n = codegen_expr e in
-        build_array_alloca llvmtype n var_name builder
+        if !scope = 0 then (declare_global llvmtype var_name the_module) else
+        (build_array_alloca llvmtype n var_name builder)
       in
       Address_records.variable_push var_name alloca
     in
     ignore(List.map mapf dl); (*in non_type*)
-    ignore(print_endline("[EXIT] -> Var decl"))
     
   | Fun_declaration(ft,Id(name),pl) ->
     let pltype = List.map (fun (Param(c, f, _)) -> 
@@ -344,6 +344,7 @@ let rec codegen_decl (decl : declaration) =
       
 
   | Fun_definition(ft,id,pl,dl,sl) -> (
+    exist_ret_stmt := false;
     let (Id(name)) = id in
     ignore(Address_records.function_add ());
     (* let the_function = codegen_decl (Fun_declaration(ft, id, pl)) in *)
@@ -395,8 +396,9 @@ let rec codegen_decl (decl : declaration) =
         let ret_val = List.map codegen_stmt sl in
 
         (* Finish off the function. *)
-        let _ = build_ret_void builder in
-        (* what happens if there is a stmt after return? *)
+      (* print_endline(to_string !exist_ret_stmt); *)
+        if not !exist_ret_stmt then
+          let _ = build_ret_void builder in
 
         (* Validate the generated code, checking for consistency. *)
         Llvm_analysis.assert_valid_function the_function;

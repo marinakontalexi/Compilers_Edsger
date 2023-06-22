@@ -1,7 +1,17 @@
+int a;
+
+int write(int v){
+    return v;
+}
+
 void main(){
-    int a,b,c,d;
-    int c;
-    b=1;
-    a=b;
-    c = 1;
+    int i,a;
+    for(i=0;i<10;i++){
+        if(i != 5){
+           write(i);
+        }
+        else{
+          write(10);
+        }
+    }
 }
