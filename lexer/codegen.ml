@@ -16,8 +16,9 @@ let builder = builder context
 (* The Codegen.named_values map keeps track of which values are defined in the current scope and what their LLVM representation is. 
    (In other words, it is a symbol table for the code). *)
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
-(* let labels:(string, {llbasicblock; llbasicblock}) Hashtbl.t = Hashtbl.create 10 *)
-let labels = Hashtbl.create 10
+type labeltype = {mutable cont: llbasicblock; mutable break: llbasicblock}
+let labels:(string, labeltype) Hashtbl.t = Hashtbl.create 10
+(* let labels = Hashtbl.create 10 *)
 
 (* types *)
 let int_type = i16_type context
@@ -222,26 +223,26 @@ match statement with
 
 | For(label, init, cond, step, s) ->
   ignore (match init with
-    | Some(e) -> codegen_expr e 
+    | Some(e) -> ignore(codegen_expr e)
     | None -> ());
   let prev_bb = insertion_block builder in
   let f = block_parent prev_bb in
-  let loopcond_bb = append_block context "loopcond" in
+  let loopcond_bb = append_block context "loopcond" f in
   let loopbody_bb = append_block context "loopbody" f in
   let loopstep_bb = append_block context "loopstep" f in
   let endfor_bb = append_block context "endfor" f in
   ignore (match label with
     (* Add label to labels *)
-    | Some(id) -> Hashtbl.add labels id {cont: loopstep_bb; break: endfor_bb}
-    | None -> Hashtbl.add labels "currentFor" {cont: loopstep_bb; break: endfor_bb});
+    | Some(Id(id)) -> Hashtbl.add labels id {cont = loopstep_bb; break = endfor_bb}
+    | None -> Hashtbl.add labels "currentFor" {cont = loopstep_bb; break = endfor_bb});
   ignore (build_br loopcond_bb builder);
 
   position_at_end loopcond_bb builder;
   let end_cond = match cond with
     | Some(e) -> codegen_expr e
-    | None -> () in
+    | None -> const_int bool_type 1 in
   let zero = const_int bool_type 0 in
-  let cond_val = build_icmp Icmp.Ne cond zero "forendcond" builder in
+  let cond_val = build_icmp Icmp.Ne end_cond zero "forendcond" builder in
   ignore (build_cond_br end_cond loopbody_bb endfor_bb builder);
 
   position_at_end loopbody_bb builder;
@@ -250,25 +251,25 @@ match statement with
 
   position_at_end loopstep_bb builder;
   ignore (match step with
-    | Some(e) -> codegen_expr e2
+    | Some(e) -> ignore(codegen_expr e)
     | None -> ()); 
   ignore (build_br loopcond_bb builder);
   
   ignore (position_at_end endfor_bb builder);
 
   ignore (match label with 
-    | Some(l) -> Hashtbl.remove labels l
+    | Some(Id(l)) -> Hashtbl.remove labels l
     | None -> Hashtbl.remove labels "currentFor")
 
 | Continue(label) ->
   let jumpLoop = match label with
-    | Some(l) -> Hashtbl.find labels l 
+    | Some(Id(l)) -> Hashtbl.find labels l 
     | None -> Hashtbl.find labels "currentFor" in
   ignore (build_br jumpLoop.cont builder)
 | Break(label) ->
   let jumpLoop = match label with
-    | Some(l) -> Hashtbl.find labels l 
-    | None -> Hashtbl.find lables "currentFor" in
+    | Some(Id(l)) -> Hashtbl.find labels l 
+    | None -> Hashtbl.find labels "currentFor" in
   ignore (build_br jumpLoop.break builder)
 | Return(e) -> 
   ignore (match e with
@@ -382,7 +383,7 @@ let rec codegen_decl (decl : declaration) =
         let ret_val = List.map codegen_stmt sl in
 
         (* Finish off the function. *)
-        let _ = build_ret ret_val builder in
+        let _ = build_ret_void builder in
         (* what happens if there is a stmt after return? *)
 
         (* Validate the generated code, checking for consistency. *)
