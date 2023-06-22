@@ -1,8 +1,7 @@
-void main() {
-char c;
-char *s;
-s = "";
+void main(){
+    int a,b,c,d;
+    int c;
+    b=1;
+    a=b;
+    c = 1;
 }
-
-    
-

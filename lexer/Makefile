@@ -2,46 +2,62 @@ all: main clean
 
 LLVM_PATH=~/.opam/default/lib/llvm/
 LLVM_FLAGS=-I $(LLVM_PATH) -c
+LLVM_FILES=shared/llvm.cmxa shared/llvm_analysis.cmxa
 
-main: ast.cmo semantic.cmo lexer.cmo parser.cmo print_fun.cmo  address_records.cmo codegen.cmo main.cmo 
-	ocamlc -o main lexer.cmo ast.cmo parser.cmo symbol.cmo semantic.cmo print_fun.cmo  address_records.cmo codegen.cmo main.cmo 
+# LLVM_PATH=~/.opam/default/lib/llvm/
+# LLVM_VERS=llvm-14
+# LLVM_FLAGS=-cc g++ -ccopt -L$(LLVM_PATH) -I +$(LLVM_VERS)
+# LLVM_FILES=llvm.cmxa llvm_analysis.cmxa	
 
-main.cmi main.cmo: main.ml 
+main: ast.cmx semantic.cmx lexer.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
+	ocamlopt -o main -I $(LLVM_PATH) $(LLVM_FILES) lexer.cmx ast.cmx parser.cmx symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
+
+main.cmi main.cmx: main.ml 
 	# ocamlc -c main.ml
 	ocamlopt $(LLVM_FLAGS) main.ml
 
-address_records.cmo: address_records.ml
-	ocamlopt $(LLVM_FLAGS) address_records.ml
-
-codegen.cmo: codegen.ml ast.cmo address_records.cmo
+codegen.cmx: codegen.ml ast.cmx address_records.cmx
 	ocamlopt $(LLVM_FLAGS) codegen.ml
 
-semantic.cmo: semantic.ml ast.cmo symbol.cmo lexer.cmi
-	ocamlc -c semantic.ml
+address_records.cmx: address_records.ml
+	ocamlopt $(LLVM_FLAGS) address_records.ml
 
-parser.cmo: parser.ml lexer.cmi 
-	ocamlc -c parser.ml
+semantic.cmx: semantic.ml ast.cmx symbol.cmx lexer.cmi
+	ocamlopt -c semantic.ml
 
-lexer.cmi lexer.cmo: lexer.ml parser.cmi
-	ocamlc -c lexer.ml
+parser.cmx: parser.ml lexer.cmi 
+	ocamlopt -c parser.ml
+
+lexer.cmi lexer.cmx: lexer.ml parser.cmi
+	ocamlopt -c lexer.ml
 
 lexer.ml: lexer.mll
 	ocamllex lexer.mll
 
 parser.cmi: parser.mli
-	ocamlc -c parser.mli
+	ocamlopt -c parser.mli
 
 parser.exe parser.ml parser.mli: parser.mly 
 	ocamlyacc -v parser.mly 
 
-symbol.cmo: symbol.ml ast.cmo
-	ocamlc -c symbol.ml
+symbol.cmx: symbol.ml ast.cmx
+	ocamlopt -c symbol.ml
 
-print_fun.cmo: print_fun.ml ast.cmo
-	ocamlc -c print_fun.ml
+print_fun.cmx: print_fun.ml ast.cmx
+	ocamlopt -c print_fun.ml
 
-ast.cmo: ast.ml
-	ocamlc -c ast.ml
+ast.cmx: ast.ml
+	ocamlopt -c ast.ml
 
-clean: 
-	rm parser.output parser.ml parser.cmo parser.cmi parser.mli ast.cmi ast.cmo main.cmi main.cmo lexer.cmi lexer.cmo lexer.ml symbol.cmi symbol.cmo semantic.cmi semantic.cmo print_fun.cmi print_fun.cmo
+clean:
+	find . -name '*.cmi' -type f -delete
+	find . -name '*.cmx' -type f -delete
+	find . -name '*.cmo' -type f -delete
+	find . -name '*.o' -type f -delete
+	find . -name '*.mli' -type f -delete
+	find . -name '*.output' -type f -delete
+	find . -name 'parser.ml' -type f -delete
+	find . -name 'lexer.ml' -type f -delete
+
+distclean: clean
+	find . -name 'main' -type f -delete

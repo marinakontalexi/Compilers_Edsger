@@ -65,6 +65,7 @@ let create_argument_allocas the_function pl =
     | Id(s) -> 
       let Var(_, alloca, _) = variable_find s
       in build_load alloca s builder 
+    (* in alloca *)
   
     | True -> const_int bool_type 1
     | False -> const_int bool_type 0
@@ -176,14 +177,21 @@ let create_argument_allocas the_function pl =
       build_store vl e_val builder
   
     | Bin_assignment (e1, ass, e2) ->
-      let e1_val = codegen_expr e1 in
+      let e1_val = match e1 with 
+      | Id(s) -> let Var(_, ret, _) = variable_find s in ret
+      | _ -> codegen_expr e1 in 
+
       let vl = match ass with
         | TIMESEQ -> codegen_expr (Bin_operation(e1, TIMES, e2))
         | MODEQ  -> codegen_expr (Bin_operation(e1, MOD, e2))
         | DIVEQ -> codegen_expr (Bin_operation(e1, DIV, e2))
         | PLUSEQ -> codegen_expr (Bin_operation(e1, PLUS, e2))
         | MINUSEQ -> codegen_expr (Bin_operation(e1, MINUS, e2))
-        | ASSIGN -> codegen_expr e2
+        | ASSIGN -> codegen_expr e2(* 
+          let rval = match e2 with
+        | Id(s) -> build_load (codegen_expr e2) s builder
+        | _ -> codegen_expr e2
+        *)
       in build_store vl e1_val builder
   
   
@@ -282,21 +290,25 @@ match statement with
 let rec codegen_decl (decl : declaration) = 
   match decl with
   | Var_declaration(ft, dl) ->
-    let currentBlock = insertion_block builder in
-    position_at_end currentBlock builder;
+    print_endline("[ENTER] -> Var decl");
+    (* let currentBlock = insertion_block builder in *)
+    
+    (* position_at_end currentBlock builder; *)
     (* let f = block_parent currentBlock in *)
     let llvmtype = ft_to_llvmtype ft in
+    
     let mapf (Declarator(Id(var_name), ce)) = 
       let alloca = 
       match ce with 
-      | None -> build_alloca llvmtype var_name builder 
+      | None -> build_alloca llvmtype var_name builder
       | Some(Const_expr(e)) -> 
         let n = codegen_expr e in
         build_array_alloca llvmtype n var_name builder
       in
       Address_records.variable_push var_name alloca
     in
-    ignore(List.map mapf dl) (*in non_type*)
+    ignore(List.map mapf dl); (*in non_type*)
+    ignore(print_endline("[EXIT] -> Var decl"))
     
   | Fun_declaration(ft,Id(name),pl) ->
     let pltype = List.map (fun (Param(c, f, _)) -> 

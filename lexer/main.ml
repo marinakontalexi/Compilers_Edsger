@@ -43,9 +43,9 @@ let main () =
       | End_of_semantic -> 
         print_endline "Semantic analysis OK\n");
         let llm = List.map Codegen.codegen_decl !Ast.syntaxTree in
-        dump_module llm
+        dump_module Codegen.the_module
 
 
 
-let _ = main(); Print_fun.print !Ast.syntaxTree
+let _ = main()(*; Print_fun.print !Ast.syntaxTree*)
 (* let _ = Printexc.print main () *)
