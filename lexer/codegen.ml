@@ -21,6 +21,8 @@ let double_type = x86fp80_type context
 let bool_type = i1_type context
 let non_type = void_type context
 
+type result_value_type = LVAL | RVAL | NULL
+
 (* alloca functions *)
 let create_entry_block_alloca the_function ft var_name =
   let builder = builder_at context (instr_begin (entry_block the_function)) in
@@ -51,15 +53,16 @@ let create_argument_allocas the_function pl =
     ignore(Address_records.variable_push var_name alloca);
   ) (params the_function)
 
-  let rec codegen_expr (expression:expr) = 
+  let rec codegen_expr (value_type:result_value_type) (expression:expr)  = 
     let name = expr_to_string expression in
     match expression with
     | NULL-> const_null (pointer_type int_type)
   
     | Id(s) -> 
-      let Var(_, alloca, _) = variable_find s
-      in build_load alloca s builder 
-    (* in alloca *)
+      let Var(_, alloca, _) = variable_find s in
+      (match value_type with
+      | LVAL -> alloca
+      | RVAL | NULL -> build_load alloca s builder )
   
     | True -> const_int bool_type 1
     | False -> const_int bool_type 0
@@ -81,21 +84,26 @@ let create_argument_allocas the_function pl =
         | Some callee -> callee
         | None -> raise (Error "unknown function referenced")
       in
-      let args = Array.of_list (List.map codegen_expr args) in
+      (*THIS SHOULD CHANGE |BYREF->LVAL |BYVALUE->RVAL *)
+      let args = Array.of_list (List.map (codegen_expr RVAL) args) in
       build_call callee args "calltmp" builder 
   
     | Table_call(e1, e2) -> 
-      (* we need ptr or the deref of ptr? *)
-      let ptr = codegen_expr e1 in
-      let offset = codegen_expr e2 in
-      build_gep ptr [|offset|] "tableCalltmp" builder
+      let ptr = codegen_expr RVAL e1 in 
+      let offset = codegen_expr RVAL e2 in
+      let p = build_gep ptr [|offset|] "tableCalltmp" builder in
+      (match value_type with
+      | LVAL -> p
+      | RVAL -> build_load p "loadtmp" builder)
   
     | Un_operation(op, e) ->
-      (let vl = codegen_expr e in
-      match op with
-      | AND -> vl
-      | POINT -> (*do we need smt else?*)
-        build_load vl "loadtmp" builder
+      let vl = codegen_expr RVAL e in
+      (match op with
+      | AND -> codegen_expr LVAL e
+      | POINT -> 
+        (match value_type with
+        | RVAL -> build_load vl "loadtmp" builder
+        | LVAL -> vl)
       | EXC -> build_not vl "nottmp" builder
       | POS -> vl
       | NEG -> 
@@ -103,8 +111,8 @@ let create_argument_allocas the_function pl =
         else build_fneg vl "negtmp" builder)
   
     | Bin_operation(e1, op, e2) ->(
-      let e1_val = codegen_expr e1 in
-      let e2_val = codegen_expr e2 in
+      let e1_val = codegen_expr RVAL e1 in
+      let e2_val = codegen_expr RVAL e2 in
       let val_type = (match classify_type (type_of e1_val) with 
         |Pointer -> element_type (type_of e1_val)
         | _ -> type_of e1_val) in
@@ -129,68 +137,76 @@ let create_argument_allocas the_function pl =
         if ((type_of e1_val) = int_type) then build_srem e1_val e2_val "modtmp" builder
         else build_frem e1_val e2_val "modtmp" builder
       | LESS ->
-        if (val_type = int_type || (size_of val_type) = (size_of (pointer_type int_type))) then
+        if (val_type = int_type || val_type = bool_type || (size_of val_type) = (size_of (pointer_type int_type))) then
           build_icmp Icmp.Slt e1_val e2_val "lesstmp" builder
         else build_fcmp Fcmp.Olt e1_val e2_val "lesstmp" builder
       | MORE ->
-        if (val_type = int_type || (size_of val_type) = (size_of (pointer_type int_type))) then
+        if (val_type = int_type || val_type = bool_type || (size_of val_type) = (size_of (pointer_type int_type))) then
           build_icmp Icmp.Sgt e1_val e2_val "moretmp" builder
         else build_fcmp Fcmp.Ogt e1_val e2_val "moretmp" builder
       | LEQ ->
-        if (val_type = int_type || (size_of val_type) = (size_of (pointer_type int_type))) then
+        if (val_type = int_type || val_type = bool_type || (size_of val_type) = (size_of (pointer_type int_type))) then
           build_icmp Icmp.Sle e1_val e2_val "leqtmp" builder
         else build_fcmp Fcmp.Oge e1_val e2_val "leqtmp" builder
       | GEQ ->
-        if (val_type = int_type || (size_of val_type) = (size_of (pointer_type int_type))) then
+        if (val_type = int_type || val_type = bool_type || (size_of val_type) = (size_of (pointer_type int_type))) then
           build_icmp Icmp.Sge e1_val e2_val "geqtmp" builder
         else build_fcmp Fcmp.Oge e1_val e2_val "geqtmp" builder
       | EQ ->
-        if (val_type = int_type || (size_of val_type) = (size_of (pointer_type int_type))) then
+        if (val_type = int_type || val_type = bool_type || (size_of val_type) = (size_of (pointer_type int_type))) then
           build_icmp Icmp.Eq e1_val e2_val "eqtmp" builder
         else build_fcmp Fcmp.Oeq e1_val e2_val "eqtmp" builder
       | NEQ ->
-        if (val_type = int_type || (size_of val_type) = (size_of (pointer_type int_type))) then
+        if (val_type = int_type || val_type = bool_type || (size_of val_type) = (size_of (pointer_type int_type))) then
           build_icmp Icmp.Ne e1_val e2_val "neqtmp" builder
         else build_fcmp Fcmp.One e1_val e2_val "neqtmp" builder
 
-      (* | LOGICAL_AND 
-      | LOGICAL_OR 
-      | COMMA ->(* NOT WRITE CODE*)  *)
+      | LOGICAL_AND -> 
+        let and_val = build_and e1_val e2_val "andtmp" builder in
+        let one = const_int bool_type 1 in 
+        build_icmp Icmp.Eq and_val one "andeqtmp" builder
+      | LOGICAL_OR -> 
+        let or_val = build_or e1_val e2_val "andtmp" builder in
+        let one = const_int bool_type 1 in 
+        build_icmp Icmp.Eq or_val one "andeqtmp" builder
+      | COMMA -> e2_val
       )
-  
-      (* SOMETHING SHOULD BE DIFFERENT BASED ON POSITION OF e *)
-    | Un_assignment_left(INCR, e) 
+
+    | Un_assignment_left(INCR, e) ->
+      let lval = codegen_expr LVAL e in
+      let vl = codegen_expr RVAL (Bin_operation(e, PLUS, INT(1))) in
+      let _ = build_store vl lval builder in 
+      vl
     | Un_assignment_right(e, INCR)-> 
-      let e_val = match e with 
-      | Id(s) -> let Var(_, ret, _) = variable_find s in ret
-      | _ -> codegen_expr e in 
-      let vl = codegen_expr (Bin_operation(e, PLUS, INT(1))) in
-      build_store vl e_val builder
-    | Un_assignment_left(DECR, e) 
+      let rval = codegen_expr RVAL e in
+      let lval = codegen_expr LVAL e in
+      let vl = codegen_expr RVAL (Bin_operation(e, PLUS, INT(1))) in
+      let _ = build_store vl lval builder in
+      rval
+    | Un_assignment_left(DECR, e) ->
+      let lval = codegen_expr LVAL e in
+      let vl = codegen_expr RVAL (Bin_operation(e, MINUS, INT(1))) in
+      let _ = build_store vl lval builder in
+      vl
     | Un_assignment_right(e, DECR) -> 
-      let e_val = match e with 
-      | Id(s) -> let Var(_, ret, _) = variable_find s in ret
-      | _ -> codegen_expr e in 
-      let vl = codegen_expr (Bin_operation(e, MINUS, INT(1))) in
-      build_store vl e_val builder
+      let rval = codegen_expr RVAL e in
+      let lval = codegen_expr LVAL e in
+      let vl = codegen_expr RVAL (Bin_operation(e, MINUS, INT(1))) in
+      let _ = build_store vl lval builder in
+      rval
   
     | Bin_assignment (e1, ass, e2) ->
-      let e1_val = match e1 with 
-      | Id(s) -> let Var(_, ret, _) = variable_find s in ret
-      | _ -> codegen_expr e1 in 
-
+      let e1_val = codegen_expr LVAL e1 in
       let vl = match ass with
-        | TIMESEQ -> codegen_expr (Bin_operation(e1, TIMES, e2))
-        | MODEQ  -> codegen_expr (Bin_operation(e1, MOD, e2))
-        | DIVEQ -> codegen_expr (Bin_operation(e1, DIV, e2))
-        | PLUSEQ -> codegen_expr (Bin_operation(e1, PLUS, e2))
-        | MINUSEQ -> codegen_expr (Bin_operation(e1, MINUS, e2))
-        | ASSIGN -> codegen_expr e2(* 
-          let rval = match e2 with
-        | Id(s) -> build_load (codegen_expr e2) s builder
-        | _ -> codegen_expr e2
-        *)
-      in build_store vl e1_val builder
+        | TIMESEQ -> codegen_expr RVAL (Bin_operation(e1, TIMES, e2))
+        | MODEQ  -> codegen_expr RVAL (Bin_operation(e1, MOD, e2))
+        | DIVEQ -> codegen_expr RVAL (Bin_operation(e1, DIV, e2))
+        | PLUSEQ -> codegen_expr RVAL (Bin_operation(e1, PLUS, e2))
+        | MINUSEQ -> codegen_expr RVAL (Bin_operation(e1, MINUS, e2))
+        | ASSIGN -> codegen_expr RVAL e2
+      in 
+      let _ = build_store vl e1_val builder in
+      vl
   
   
     (* | Typecast(ft, e)->()
@@ -202,10 +218,10 @@ let create_argument_allocas the_function pl =
 let rec codegen_stmt (statement:stmt) = 
 match statement with
 | Empty_stmt -> ()
-| Expression(e) -> ignore (codegen_expr e)
+| Expression(e) -> ignore (codegen_expr RVAL e)
 | Stmt_block(sl) -> ignore (List.map codegen_stmt sl)
 | If(e,s_then, s_else) ->
-    let cond = codegen_expr e in
+    let cond = codegen_expr RVAL e in
     let zero = const_int bool_type 0 in
     let cond_val = build_icmp Icmp.Ne cond zero "ifcond" builder in
     let start_bb = insertion_block builder in
@@ -217,7 +233,7 @@ match statement with
 
     position_at_end then_bb builder;
     ignore (codegen_stmt s_then);
-    ignore (build_br end_if builder);
+    (* ignore (build_br end_if builder); *)
     
     position_at_end else_bb builder;
     ignore(match s_else with
@@ -229,7 +245,7 @@ match statement with
 
 | For(label, init, cond, step, s) ->
   ignore (match init with
-    | Some(e) -> ignore(codegen_expr e)
+    | Some(e) -> ignore(codegen_expr RVAL e)
     | None -> ());
   let prev_bb = insertion_block builder in
   let f = block_parent prev_bb in
@@ -237,15 +253,16 @@ match statement with
   let loopbody_bb = append_block context "loopbody" f in
   let loopstep_bb = append_block context "loopstep" f in
   let endfor_bb = append_block context "endfor" f in
+  ignore(Hashtbl.add labels "currentFor" {cont = loopstep_bb; break = endfor_bb});
   ignore (match label with
     (* Add label to labels *)
-    | Some(Id(id)) -> Hashtbl.add labels id {cont = loopstep_bb; break = endfor_bb}
-    | None -> Hashtbl.add labels "currentFor" {cont = loopstep_bb; break = endfor_bb});
+    | Some(Id(id)) -> ignore(Hashtbl.add labels id {cont = loopstep_bb; break = endfor_bb})
+    | None -> ());
   ignore (build_br loopcond_bb builder);
 
   position_at_end loopcond_bb builder;
   let end_cond = match cond with
-    | Some(e) -> codegen_expr e
+    | Some(e) -> codegen_expr RVAL e
     | None -> const_int bool_type 1 in
   let zero = const_int bool_type 0 in
   let cond_val = build_icmp Icmp.Ne end_cond zero "forendcond" builder in
@@ -253,19 +270,19 @@ match statement with
 
   position_at_end loopbody_bb builder;
   ignore (codegen_stmt s);
-  ignore (build_br loopstep_bb builder);
+  (* ignore (build_br loopstep_bb builder); *)
 
   position_at_end loopstep_bb builder;
   ignore (match step with
-    | Some(e) -> ignore(codegen_expr e)
+    | Some(e) -> ignore(codegen_expr RVAL e)
     | None -> ()); 
   ignore (build_br loopcond_bb builder);
   
   ignore (position_at_end endfor_bb builder);
-
+  ignore (Hashtbl.remove labels "currentFor");
   ignore (match label with 
-    | Some(Id(l)) -> Hashtbl.remove labels l
-    | None -> Hashtbl.remove labels "currentFor")
+    | Some(Id(l)) -> ignore(Hashtbl.remove labels l)
+    | None -> ())
 
 | Continue(label) ->
   let jumpLoop = match label with
@@ -281,7 +298,7 @@ match statement with
   exist_ret_stmt := true;
   ignore (match e with
     | Some(ret) -> 
-        let vl = codegen_expr ret in
+        let vl = codegen_expr RVAL ret in
         build_ret vl builder 
     | None -> build_ret_void builder)
 
@@ -302,9 +319,9 @@ let rec codegen_decl (decl : declaration) =
       (* IF SCOPE IS 0 THEN WE HAVE GLOBALS?*)
       | None -> if !scope = 0 then (declare_global llvmtype var_name the_module) else (build_alloca llvmtype var_name builder)
       | Some(Const_expr(e)) -> 
-        let n = codegen_expr e in
+        let n = codegen_expr RVAL e in
         if !scope = 0 then (declare_global llvmtype var_name the_module) else
-        (build_array_alloca llvmtype n var_name builder)
+        (build_array_alloca (pointer_type llvmtype) n var_name builder)
       in
       Address_records.variable_push var_name alloca
     in

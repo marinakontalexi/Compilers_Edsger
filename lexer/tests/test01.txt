@@ -5,13 +5,15 @@ int write(int v){
 }
 
 void main(){
-    int i,a;
-    for(i=0;i<10;i++){
-        if(i != 5){
-           write(i);
-        }
-        else{
-          write(10);
-        }
+    int i,a,b;    
+    bool k;
+    i = 1;
+    a = b = 5;
+    k = false;
+    label: for(i=0; i<a; ++i){
+        a=5;
+     if (true) {continue label;}
+     break label;
     }
+
 }
