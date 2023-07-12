@@ -1,19 +1,9 @@
-int a;
+#include "inc/stdio.h"
 
-int write(int v){
-    return v;
+void hello(){
+    writeInteger(1);
 }
 
 void main(){
-    int i,a,b;    
-    bool k;
-    i = 1;
-    a = b = 5;
-    k = false;
-    label: for(i=0; i<a; ++i){
-        a=5;
-     if (true) {continue label;}
-     break label;
-    }
 
 }

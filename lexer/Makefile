@@ -1,16 +1,19 @@
-all: main clean
+LIBPATH=./lib
+
 
 LLVM_PATH=~/.opam/default/lib/llvm/
 LLVM_FLAGS=-I $(LLVM_PATH) -c
 LLVM_FILES=shared/llvm.cmxa shared/llvm_analysis.cmxa
 
+
+all: main library clean
 # LLVM_PATH=~/.opam/default/lib/llvm/
 # LLVM_VERS=llvm-14
 # LLVM_FLAGS=-cc g++ -ccopt -L$(LLVM_PATH) -I +$(LLVM_VERS)
 # LLVM_FILES=llvm.cmxa llvm_analysis.cmxa	
 
-main: ast.cmx semantic.cmx lexer.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
-	ocamlopt -o main -I $(LLVM_PATH) $(LLVM_FILES) lexer.cmx ast.cmx parser.cmx symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
+main: ast.cmx semantic.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
+	ocamlopt -o main -I $(LLVM_PATH) $(LLVM_FILES) ast.cmx parser.cmx lexer.cmx   symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
 
 main.cmi main.cmx: main.ml 
 	# ocamlc -c main.ml
@@ -49,6 +52,9 @@ print_fun.cmx: print_fun.ml ast.cmx
 ast.cmx: ast.ml
 	ocamlopt -c ast.ml
 
+library:
+	make -C $(LIBPATH)
+
 clean:
 	find . -name '*.cmi' -type f -delete
 	find . -name '*.cmx' -type f -delete
@@ -61,3 +67,5 @@ clean:
 
 distclean: clean
 	find . -name 'main' -type f -delete
+	find . -name '*.ll' -type f -delete
+	find . -name '*.s' -type f -delete

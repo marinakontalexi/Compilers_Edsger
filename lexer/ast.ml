@@ -43,6 +43,8 @@ type program = declaration list
 
 let syntaxTree : program ref = ref []
 
+exception End_of_parser of program
+
 let unop_to_string op = 
   match op with
   | AND -> " & "

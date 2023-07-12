@@ -2,21 +2,16 @@
 %{
     open Printf
     open Ast
-    open Lexer
 
-    let parse_error s = 
-          if !lexical_error_found then               
-               let f (c,l) =
-                    "\nUnrecognized character:" ^ (String.make 1 c) ^ " at line: " ^ (string_of_int l)
-               in
-                    let error_string = List.fold_left (^) " " (List.map f (List.rev !lexical_errors)) in
-                    print_endline error_string;
-          else
-               ()
-     
+    let rec expr_to_list expression =
+     match expression with 
+     | Bin_operation(e1, COMMA, e2) -> (expr_to_list e1) @ (expr_to_list e2)
+     | _ -> [expression]    
+     let line_number = ref 0
 %}
 
 /* declarations */
+%token <Ast.program> T_include
 %token BOOL BREAK BYREF
 %token CHAR CONTINUE
 %token <char> CONST_C
@@ -64,8 +59,15 @@
 %%
 
 /* grammar rules */
-program: declaration_list EOF {syntaxTree := (List.rev $1); raise End_of_file }
+program: 
+     | directives_list declaration_list EOF {syntaxTree := $1 @ (List.rev $2); raise (End_of_parser (!syntaxTree))}
 ;
+
+directives_list:  { [] }
+       | directives_list directive { $1 @ $2 }
+;
+
+directive: T_include { $1 }
 
 declaration_list: declaration { [$1] }
        | declaration_list declaration { $2::$1 }
@@ -81,7 +83,7 @@ declaration: variable_declaration { $1 }
 ;
 
 variable_declaration: fulltype declarator_list SEMICOLON { Var_declaration($1, List.rev $2) }
-                    | error declarator_list SEMICOLON { print_endline("Syntax error: Wrong type at line " ^ (string_of_int !line_number)); Var_declaration(Type(Void, 0), [])}
+                    // | error declarator_list SEMICOLON { print_endline("Syntax error: Wrong type at line " ^ (string_of_int !line_number)); Var_declaration(Type(Void, 0), [])}
 
 ;
 
@@ -114,9 +116,9 @@ function_declaration: fulltype ID L_PAREN parameter_list R_PAREN SEMICOLON { Fun
 ;
 
 function_definition: fulltype ID L_PAREN parameter_list R_PAREN  
-                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition($1, Id($2), $4, List.rev $7, List.rev $8) }
+                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition($1, Id($2), List.rev $4, List.rev $7, List.rev $8) }
                    | VOID ID L_PAREN parameter_list R_PAREN  
-                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition(Type(Void, 0), Id($2), $4, List.rev $7, List.rev $8) }
+                        L_BRACE declaration_list_empty statement_list R_BRACE { Fun_definition(Type(Void, 0), Id($2), List.rev $4, List.rev $7, List.rev $8) }
 ;
 
 
@@ -171,8 +173,8 @@ expression: ID { Id($1) }
           | CONST_F { FLOAT($1) }
           | CONST_S { STRING($1) }
           | ID L_PAREN R_PAREN { Fun_call(Id($1), [])}
-          | ID L_PAREN expression_list R_PAREN { Fun_call(Id($1), List.rev $3) }
-          | expression L_BRACK expression R_BRACK { Table_call($1, $3) }   /* mono gia *id[expr]?? */
+          | ID L_PAREN expression R_PAREN { Fun_call(Id($1), (expr_to_list $3)) }
+          | expression L_BRACK expression R_BRACK { Table_call($1, $3) } 
           | unary_expression { $1 }
           | binary_expression { $1 }
           | unary_assignment { $1 }
@@ -188,9 +190,9 @@ expression: ID { Id($1) }
 //           | L_BRACK expression R_BRACK { Some($2) }
 // ;
 
-expression_list: expression { [$1] }
-               | expression_list COMMA expression { $3::$1 }
-;
+// expression_list: expression { [$1] }
+//                | expression_list COMMA expression { $3::$1 }
+// ;
 
 constant_expression: expression { Const_expr($1) }
 ;
