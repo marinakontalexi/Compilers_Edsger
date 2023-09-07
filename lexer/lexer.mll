@@ -1,5 +1,6 @@
 (* header section *)
 { 
+    open Lexing
     open Printf
     open Char
     open Parser
@@ -111,15 +112,40 @@ let include_directive = "#include" W* name
 (* rules section *)
 rule eds_lex = parse
     | include_directive {
+        let deafult_lib_header = "/mnt/c/Users/geopa/OneDrive/Documents/sxoli/ROH_L/Compilers/Compilers_Edsger/lexer/lib/lib-headers" in
         let fn = ref filename in
-        let cd =  "/mnt/c/Users/geopa/OneDrive/Documents/sxoli/ROH_L/Compilers/Compilers_Edsger/lexer" in
-        let cnf = if cd <> "." then Printf.sprintf "%s/lib/lib-headers/%s" cd filename
-                else filename in
-        print_endline(cnf);
+        let cd = Sys.getcwd() in
+        let starts_with_dot str =
+            let prefix = "." in
+            let prefix_length = String.length prefix in
+            let str_length = String.length str in
+            str_length >= prefix_length && String.sub str 0 prefix_length = prefix
+        in
+        let cnf = 
+            if starts_with_dot filename then (
+                (* let dir = Filename.dirname filename in
+                let relative_path = Filename.concat dir filename in
+                let full_path = Filename.concat (Sys.getcwd ()) relative_path in
+                Printf.printf "path: %s\n" full_path; *)
+                (* "\027[1;%s (File '%s' - Line %d, Column %d): \027[0m%s\n" *)
+                let msg = "We are sorry we do not accept relatives paths :)\nPlease give the full path of the file you want to include a file that is not in default libraries!" in
+                Printf.eprintf "\027[31m%s\027[0m \n" msg;
+                exit 1
+            )
+            else filename in
+        Printf.printf "cnf: %s\n" cnf;
         if (not (Sys.file_exists cnf)) then(
-            Printf.printf "File '%s' does not exists" filename;
-            exit 1);
-        fn := cnf;
+            let lib_cnf = Printf.sprintf "%s/%s" deafult_lib_header filename in
+            if (not (Sys.file_exists lib_cnf)) 
+            then(
+                Printf.printf "File '%s' does not exists\n" lib_cnf;
+                exit 1
+            )
+            else fn := lib_cnf
+        )
+        else(
+            fn := cnf
+        );
         
         let find name = 
         try 
@@ -165,7 +191,7 @@ rule eds_lex = parse
         as op2 { Hashtbl.find operatoreq_table op2 }
     | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] 
         as op { Hashtbl.find operator_table op }
-    | ['\n'] { incr line_number; Lexing.new_line lexbuf; eds_lex lexbuf }
+    | ['\n'] {incr line_number; print_endline "new_line";Lexing.new_line lexbuf; eds_lex lexbuf }
     | W+ 
     | "//"[^'\n']+ { eds_lex lexbuf }
     | "/*" { comment lexbuf }
@@ -187,7 +213,7 @@ rule eds_lex = parse
         }
     and comment = parse 
     | "*/" { eds_lex lexbuf }
-    | '\n' { incr line_number; Lexing.new_line lexbuf; comment lexbuf }
+    | '\n' { incr line_number; Lexing.new_line lexbuf; Lexing.flush_input lexbuf;comment lexbuf }
     | _ { comment lexbuf }
 (* trailer section *)
 {
@@ -206,4 +232,6 @@ rule eds_lex = parse
         try parse lexbuf
         with End_of_file -> ()
         let _ = Printexc.print main () *)
+    (* print_endline "hey from lexer";
+    print_endline (string_of_int !line_number) *)
 }
