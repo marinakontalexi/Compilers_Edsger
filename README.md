@@ -10,6 +10,14 @@
 
 Students: Kontalexi Marina - Papadoulis George
 
+Code Dependences: 
+
+- llvm 18.0.0
+- clang 18.0.0
+- ocaml 4.14.0
+- opam 2.0.5
+- gcc 9.4.0
+
 Steps to download and run the project:  
 First edit the /src/project_path.txt file and write in the first line the full path of edsger project.  
 For example
