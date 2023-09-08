@@ -6,6 +6,7 @@ open Bool
 exception Error of string
 
 let exist_ret_stmt = ref false
+
 let context = global_context ()
 let the_module = create_module context "program_module"
 let builder = builder context
@@ -72,8 +73,9 @@ let create_argument_allocas the_function pl =
     | STRING(s) -> 
       let str_init = const_stringz context s in 
       let str = define_global ".str" str_init the_module in
-      let constzero = const_int int_type 0 in
-      build_gep str [|constzero|] "strtmp" builder
+      let constzero = const_int int_type 0 in 
+      build_gep str [|constzero;constzero|] "strtmp" builder 
+      (* str *)
   
     (* -------------- *)
     (* --- TO SEE --- *)
@@ -86,7 +88,7 @@ let create_argument_allocas the_function pl =
       in
       (*THIS SHOULD CHANGE |BYREF->LVAL |BYVALUE->RVAL *)
       let args = Array.of_list (List.map (codegen_expr RVAL) args) in
-      build_call callee args "calltmp" builder 
+      build_call callee args "" builder 
   
     | Table_call(e1, e2) -> 
       let ptr = codegen_expr RVAL e1 in 
@@ -116,17 +118,23 @@ let create_argument_allocas the_function pl =
       let val_type = (match classify_type (type_of e1_val) with 
         |Pointer -> element_type (type_of e1_val)
         | _ -> type_of e1_val) in
+      let vt1 = type_of e1_val in
+      let vt2 = type_of e2_val in 
+      let isInt = (vt1 = int_type && vt2 = int_type) in
+      let isDouble = (vt1 = double_type && vt2 = double_type) in
       match op with
       | PLUS ->
-        if (size_of val_type) = (size_of (pointer_type int_type)) then
-          build_gep e1_val [|e2_val|] "ptraddtmp" builder
-        else if val_type = int_type then build_add e1_val e2_val "addtmp" builder
-        else build_fadd e1_val e2_val "addtmp" builder
+        (* if (size_of val_type) = (size_of (pointer_type int_type)) then
+          build_gep e1_val [|e2_val|] "ptraddtmp" builder *)
+        if isInt  then build_add e1_val e2_val "addtmp" builder
+        else if isDouble then build_fadd e1_val e2_val "addtmp" builder
+        else build_gep e1_val [|e2_val|] "ptraddtmp" builder
       | MINUS ->
-        if (size_of val_type) = (size_of (pointer_type int_type)) then
-          build_gep e1_val [|e2_val|] "ptraddtmp" builder
-        else if val_type = int_type then build_sub e1_val e2_val "subtmp" builder
-        else build_fsub e1_val e2_val "subtmp" builder
+        (* if (size_of val_type) = (size_of (pointer_type int_type)) then
+          build_gep e1_val [|e2_val|] "ptraddtmp" builder *)
+        if isInt then build_sub e1_val e2_val "subtmp" builder
+        else if isDouble then build_fsub e1_val e2_val "subtmp" builder
+        else build_gep e1_val [|e2_val|] "ptraddtmp" builder
       | TIMES ->
         if ((type_of e1_val) = int_type) then build_mul e1_val e2_val "multmp" builder
         else build_fmul e1_val e2_val "multmp" builder
@@ -208,18 +216,88 @@ let create_argument_allocas the_function pl =
       let _ = build_store vl e1_val builder in
       vl
   
-  
-    (* | Typecast(ft, e)->()
-    | Question(e1, e2, e3)->()
-    | New(ft, None)->()
-    | New(Type(t, n), Some(e))->()
-    | Delete(e) ->() *)
+    | Typecast(fullt, e) -> (
+      let vl = codegen_expr RVAL e in
+      let fromType = type_of vl in
+      (* print_endline (string_of_lltype fromType);
+      print_endline (string_of_bool (fromType = double_type)); *)
+      let ft = ft_to_llvmtype fullt in
+      (* print_endline (string_of_lltype ft);
+      print_endline (string_of_bool (ft = double_type)); *)
+      if(ft = int_type) then (
+        if (ft = int_type) then (
+          if (fromType = int_type) then build_zext vl ft "casttmp" builder
+          else if fromType = double_type then ( build_fptosi vl ft "casttmp" builder)
+          else (build_ptrtoint vl ft "casttmp" builder))
+
+        else if (ft = char_type) then (
+          if (fromType = int_type) then (build_trunc vl ft "casttmp" builder)
+          else if (fromType = double_type) then (build_fptoui vl ft "casttmp" builder)
+          else (build_ptrtoint vl ft "casttmp" builder))
+        
+        else( 
+          if (fromType = int_type) then (build_icmp Icmp.Ne vl (const_int fromType 0) "casttmp" builder)
+          else if (fromType = double_type) then (build_fcmp Fcmp.One vl (const_float double_type 0.0) "casttmp" builder)
+          else (build_ptrtoint vl ft "casttmp" builder)
+          )
+        )
+    
+      else if (ft = double_type) then (
+        if (fromType = int_type) then 
+          (build_sitofp vl double_type "casttmp" builder)
+        else 
+          (build_uitofp vl double_type "casttmp" builder)
+      )
+    
+      else (build_bitcast vl ft "casttmp" builder)
+      
+    )
+    
+    | Question(e1, e2, e3)->
+      let cond = codegen_expr RVAL e1 in
+      let zero = const_int bool_type 0 in
+      let cond_val = build_icmp Icmp.Ne cond zero "question" builder in
+      let start_bb = insertion_block builder in
+      let f = block_parent start_bb in
+      let trueBB = append_block context "questionTrue" f in
+      let falseBB = append_block context "questionFalse" f in
+      let afterbb = append_block context "endQuestion" f in
+      ignore(build_cond_br cond trueBB falseBB builder);
+      
+      position_at_end trueBB builder;
+      let vl2 = codegen_expr RVAL e2 in
+      ignore(build_br afterbb builder);
+
+      position_at_end falseBB builder;
+      let vl3 = codegen_expr RVAL e3 in
+      ignore(build_br afterbb builder);
+
+      position_at_end afterbb builder;
+      if (type_of vl2 <> void_type context) then 
+        build_phi [(vl2, trueBB); (vl3, falseBB)] "questiontmp" builder
+      else undef (void_type context)
+
+    | New(ft, None)->
+      let typ = ft_to_llvmtype ft in
+      build_array_malloc typ (const_int int_type 0) "newtmp" builder
+    | New(ft, Some(e))->
+      let vl = codegen_expr RVAL e in
+      let typ = ft_to_llvmtype ft in
+      build_array_malloc typ vl "newtmp" builder
+    | Delete(e) ->
+      let vl = codegen_expr RVAL e in 
+      build_free vl builder
 
 let rec codegen_stmt (statement:stmt) = 
 match statement with
 | Empty_stmt -> ()
 | Expression(e) -> ignore (codegen_expr RVAL e)
-| Stmt_block(sl) -> ignore (List.map codegen_stmt sl)
+| Stmt_block(sl) -> 
+  (* let start_bb = insertion_block builder in 
+  let f = block_parent start_bb in
+  let new_bb = append_block context "stmtBlock" f in
+  ignore (build_br new_bb) *)
+  ignore (List.map codegen_stmt sl)
 | If(e,s_then, s_else) ->
     let cond = codegen_expr RVAL e in
     let zero = const_int bool_type 0 in
@@ -233,13 +311,17 @@ match statement with
 
     position_at_end then_bb builder;
     ignore (codegen_stmt s_then);
-    (* ignore (build_br end_if builder); *)
+    
+    if (block_terminator @@ insertion_block builder) = None then 
+    ignore (build_br end_if builder) else ();
     
     position_at_end else_bb builder;
     ignore(match s_else with
     | Some s -> codegen_stmt s
     | None -> ());
-    ignore (build_br end_if builder);
+
+    if (block_terminator @@ insertion_block builder) = None then
+    ignore (build_br end_if builder) else ();
 
     ignore (position_at_end end_if builder)
 
@@ -270,7 +352,8 @@ match statement with
 
   position_at_end loopbody_bb builder;
   ignore (codegen_stmt s);
-  (* ignore (build_br loopstep_bb builder); *)
+  if (block_terminator @@ insertion_block builder) = None then (
+  ignore (build_br loopstep_bb builder));
 
   position_at_end loopstep_bb builder;
   ignore (match step with
@@ -295,15 +378,137 @@ match statement with
     | None -> Hashtbl.find labels "currentFor" in
   ignore (build_br jumpLoop.break builder)
 | Return(e) -> 
-  exist_ret_stmt := true;
+  (* exist_ret_stmt := true; *)
   ignore (match e with
     | Some(ret) -> 
         let vl = codegen_expr RVAL ret in
         build_ret vl builder 
     | None -> build_ret_void builder)
 
-    
 let rec codegen_decl (decl : declaration) = 
+  let cg decl = match decl with
+  | Var_declaration(ft, dl) -> codegen_vardecl ft dl
+  | Fun_declaration(ft,Id(name),pl) -> codegen_fdecl ft name pl
+  | Fun_definition(ft,id,pl,dl,sl) -> codegen_fdef ft id pl dl sl
+  in
+  if !scope = 0 then cg decl
+  else (
+    let parent = insertion_block builder in
+    cg decl; 
+    ignore @@ position_at_end parent builder
+  )
+
+and codegen_vardecl ft dl = 
+    let llvmtype = ft_to_llvmtype ft in
+    
+    let mapf (Declarator(Id(var_name), ce)) = 
+      let alloca = 
+      match ce with 
+      (* IF SCOPE IS 0 THEN WE HAVE GLOBALS?*)
+      | None -> if !scope = 0 then (declare_global llvmtype var_name the_module) else (build_alloca llvmtype var_name builder)
+      | Some(Const_expr(e)) -> 
+        let n = codegen_expr RVAL e in
+        if !scope = 0 then (
+          let Some(temp) = (n |> Llvm.int64_of_const) in
+          let int_n = Int64.to_int temp in
+          let init = if llvmtype = int_type then (const_int int_type 0) else (const_float double_type 0.0) in
+          let arr = const_array llvmtype (Array.make int_n init) in 
+          define_global var_name arr the_module
+        ) 
+      else (build_array_alloca (pointer_type llvmtype) n var_name builder)
+      in
+      Address_records.variable_push var_name alloca
+    in
+    ignore(List.map mapf dl) (*in non_type*)
+    
+and codegen_fdecl ft name pl = 
+  let pltype = List.map (fun (Param(c, f, _)) -> 
+                          match c with 
+                          | Byvalue -> ft_to_llvmtype f
+                          | Byref -> pointer_type (ft_to_llvmtype f)) pl in
+  let args_type = Array.of_list pltype in
+  let funtype = function_type (ft_to_llvmtype ft) args_type in
+  let f =
+    match lookup_function name the_module with
+    | None -> declare_function name funtype the_module
+    (* If 'f' conflicted, there was already something named 'name'. If it
+      * has a body, don't allow redefinition or reextern. *)
+    | Some f ->
+        (* If 'f' already has a body, reject this. *)
+        if block_begin f <> At_end f then
+          raise (Error "redefinition of function");
+
+        (* If 'f' took a different number of arguments, reject. *)
+        if element_type (type_of f) <> funtype then
+          raise (Error "redefinition of function with different # args");
+        f
+  in () 
+
+
+and codegen_fdef ft id pl dl sl = 
+    (* exist_ret_stmt := false; *)
+    let (Id(name)) = id in
+    ignore(Address_records.function_add ());
+      let the_function = (
+        let pltype = List.map (fun (Param(c, f, _)) -> 
+          match c with 
+          | Byvalue -> ft_to_llvmtype f
+          | Byref -> pointer_type (ft_to_llvmtype f)) pl in
+        let args_type = Array.of_list pltype in
+        let funtype = function_type (ft_to_llvmtype ft) args_type in
+        let f =
+        match lookup_function name the_module with
+        | None -> declare_function name funtype the_module
+        (* If 'f' conflicted, there was already something named 'name'. If it
+        * has a body, don't allow redefinition or reextern. *)
+        | Some f ->
+        (* If 'f' already has a body, reject this. *)
+        if block_begin f <> At_end f then
+        raise (Error "redefinition of function");
+
+        (* If 'f' took a different number of arguments, reject. *)
+        if element_type (type_of f) <> funtype then
+        raise (Error "redefinition of function with different # args");
+        f
+        in f
+      ) in
+
+      (* Create a new basic block to start insertion into. *)
+    
+      let bb = append_block context "entry" the_function in
+      position_at_end bb builder;
+
+      try
+        (* Add all arguments to the symbol table and create their allocas. *)
+        create_argument_allocas the_function pl;
+
+        let ret_val = List.map codegen_decl dl in
+        let ret_val = List.map codegen_stmt sl in
+
+        (* Finish off the function. *)
+      (* print_endline(to_string !exist_ret_stmt); *)
+        (* if not !exist_ret_stmt then( *)
+        if (block_terminator @@ insertion_block builder) = None then (
+          ignore(build_ret_void builder));
+
+        (* Validate the generated code, checking for consistency. *)
+        Llvm_analysis.assert_valid_function the_function;
+        ignore(Address_records.function_delete())
+        (* ignore(the_function) *)
+
+      with e ->
+        ignore (delete_function the_function);
+        ignore(Address_records.function_delete());
+        raise e
+
+
+  
+
+
+
+
+
+(* let rec codegen_decl (decl : declaration) = 
   match decl with
   | Var_declaration(ft, dl) -> 
     (* let currentBlock = insertion_block builder in
@@ -361,22 +566,9 @@ let rec codegen_decl (decl : declaration) =
       
 
   | Fun_definition(ft,id,pl,dl,sl) -> (
-    exist_ret_stmt := false;
+    (* exist_ret_stmt := false; *)
     let (Id(name)) = id in
     ignore(Address_records.function_add ());
-    (* let the_function = codegen_decl (Fun_declaration(ft, id, pl)) in *)
-      (* If this is an operator, install it. 
-      begin match proto with
-      | Ast.BinOpPrototype (name, args, prec) ->
-          let op = name.[String.length name - 1] in
-          Hashtbl.add Parser.binop_precedence op prec;
-      | _ -> ()
-      end; *)
-
-
-      (*------------*)
-      (*---TO SEE---*)
-      (*------------*)
       let the_function = (
         let pltype = List.map (fun (Param(c, f, _)) -> 
           match c with 
@@ -402,6 +594,7 @@ let rec codegen_decl (decl : declaration) =
       ) in
 
       (* Create a new basic block to start insertion into. *)
+    
       let bb = append_block context "entry" the_function in
       position_at_end bb builder;
 
@@ -414,8 +607,9 @@ let rec codegen_decl (decl : declaration) =
 
         (* Finish off the function. *)
       (* print_endline(to_string !exist_ret_stmt); *)
-        if not !exist_ret_stmt then
-          let _ = build_ret_void builder in
+        (* if not !exist_ret_stmt then( *)
+        if (block_terminator @@ insertion_block builder) = None then (
+          ignore(build_ret_void builder));
 
         (* Validate the generated code, checking for consistency. *)
         Llvm_analysis.assert_valid_function the_function;
@@ -426,5 +620,5 @@ let rec codegen_decl (decl : declaration) =
         ignore (delete_function the_function);
         ignore(Address_records.function_delete());
         raise e
-  )
+  ) *)
 
