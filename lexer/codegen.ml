@@ -213,7 +213,7 @@ let create_argument_allocas the_function pl =
         | MINUSEQ -> codegen_expr RVAL (Bin_operation(e1, MINUS, e2))
         | ASSIGN -> codegen_expr RVAL e2
       in 
-
+      let _ = build_store vl e1_val builder in
       vl
   
     | Typecast(fullt, e) -> (

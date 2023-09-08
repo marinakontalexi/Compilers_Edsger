@@ -73,9 +73,11 @@ let main () =
         if (!intermidiate_code_flag) then print_module "a.ll" Codegen.the_module;
         if ((!final_code_flag) || ((not !intermidiate_code_flag) && (not !final_code_flag )))  then (
           print_module "a.ll" Codegen.the_module;
-          let cmd = "llc -relocation-model=pic -march=x86-64 a.ll -o a.s" in
+          (* let cmd = "llc -relocation-model=pic -march=x86-64 a.ll -o a.s" in *)
+          let cmd = "llc -o a.s a.ll" in
           if (Sys.command cmd <> 0) then failwith "Error in llc command";
-          let cmd = "clang -march=x86-64  a.s ./lib/edsgerlib.a -lm -o a.out" in
+          (* let cmd = "clang -march=x86-64  a.s ./lib/edsgerlib.a -lm -o a.out" in *)
+          let cmd = "clang -o a.out a.s ./lib/edsgerlib.a" in
           if (Sys.command cmd <> 0) then failwith "Error in clang command";
           let cmd = "find . -name '*.ll' -type f -delete" in
           if (Sys.command cmd <> 0) then failwith "Error in cleaning";
