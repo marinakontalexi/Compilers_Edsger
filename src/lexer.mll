@@ -112,7 +112,9 @@ let include_directive = "#include" W* name
 (* rules section *)
 rule eds_lex = parse
     | include_directive {
-        let deafult_lib_header = "/mnt/c/Users/geopa/OneDrive/Documents/sxoli/ROH_L/Compilers/Compilers_Edsger/lexer/lib/lib-headers" in
+        let project_path = Stdlib.open_in "project_path.txt" |> input_line in
+        let path = Printf.sprintf "%s/src/lib/lib-headers" project_path in
+        let deafult_lib_header = path in
         let fn = ref filename in
         let cd = Sys.getcwd() in
         let starts_with_dot str =
@@ -133,7 +135,7 @@ rule eds_lex = parse
                 exit 1
             )
             else filename in
-        Printf.printf "cnf: %s\n" cnf;
+        (* Printf.printf "cnf: %s\n" cnf; *)
         if (not (Sys.file_exists cnf)) then(
             let lib_cnf = Printf.sprintf "%s/%s" deafult_lib_header filename in
             if (not (Sys.file_exists lib_cnf)) 

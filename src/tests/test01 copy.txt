@@ -1,0 +1,20 @@
+ // #include "/mnt/c/Users/geopa/OneDrive/Documents/sxoli/ROH_L/Compilers/Compilers_Edsger/lexer/tests/hello.eds" 
+int a;
+
+int write(int v){
+    return v;
+}
+
+void main(){
+    int i,a,b;    
+    bool k;
+    i = 1;
+    a = b = 5;
+    k = false;
+    label: for(i=0; i<a; ++i){
+        a=5;
+     if (true) {continue label;}
+     break label;
+    }
+
+}

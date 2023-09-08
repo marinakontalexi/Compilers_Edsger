@@ -1,9 +1,0 @@
-tests/
-lexer.cmi
-lexer.cmx
-lexer.exe
-lexer.ml
-lexer.o
-.vscode/
-./lexer/main
-./lexer/notes.txt

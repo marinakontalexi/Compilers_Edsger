@@ -1,0 +1,9 @@
+#include "inc/stdio.h"
+
+void hello(){
+    writeInteger(1);
+}
+
+void main(){
+
+}

@@ -1,0 +1,80 @@
+#include "stdio.h"
+
+double globalDouble;
+int global[2];
+
+int test(int x) {
+    int a;
+
+    void anotherFunc(double b);
+
+    void someFunc(int a) {
+        int x;
+        
+        int someOtherFunc(bool b) {
+            someOtherFunc(true);
+            anotherFunc(24.2);
+            
+            return 42;
+        }
+
+        someOtherFunc(true);
+        x = a + 42;
+    }
+
+    void anotherFunc(double b) {
+        int f;
+        
+        f = 42;
+        someFunc(f);
+    }
+
+    a = 42;
+    someFunc(a);
+    anotherFunc(42.1);
+    return a;
+}
+
+int testOuter(int a) {
+    int x;
+
+    if (a > 17)
+        return -1;
+    else
+        return -2;
+
+    x = a + 100;
+    return x;
+}
+
+int simpleFunc(byref int x) {
+    x = 100;
+    return x + 42;
+}
+
+void main() {
+    int a;
+    int i;
+    int j;
+    int x[simpleFunc(a)];
+
+    void testFunc() {
+        void someFunc(int a) {
+            int x;
+            x = a + 17;
+        }
+    }
+
+    a = 17;
+    testFunc();
+    i = test(a);
+    someLabel: for (i = 0; i < 10; i++) {
+        a++;
+        anotherLabel: for (j = 0; j < 42; j++) {
+            a *= 2;
+            if ( a % 2 == 0)
+                break anotherLabel;
+        }
+    }
+}
+

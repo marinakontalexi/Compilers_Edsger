@@ -53,10 +53,11 @@ let main () =
     | Parsing.Parse_error -> (
       let pos = lexbuf.Lexing.lex_curr_p in
       let msg = "Syntax Error" in 
-      let txt = "31mError" in
+      let txt = "31mSyntax Error" in
       let line_pos = (pos.pos_cnum - pos.pos_bol + 1) in
-      Printf.eprintf "\027[1;%s (File '%s' - Line %d, Column %d): \027[0m%s\n"
-                    txt pos.pos_fname (pos.pos_lnum) line_pos msg
+      (* Printf.eprintf "\027[1;%s (File '%s' - Line %d, Column %d): \027[0m%s\n"
+                    txt pos.pos_fname (pos.pos_lnum) line_pos msg  *)
+      Printf.eprintf "\027[1;%s \027[0m\n" txt
       )
     | Lexer.Lexical_Error p -> (print_endline p;)
     | Ast.End_of_parser tree-> 
@@ -71,7 +72,13 @@ let main () =
         let llm = List.map Codegen.codegen_decl !Ast.syntaxTree in
         if (!opt_flag) then Optimizer.optimize Codegen.the_module;
         if (!intermidiate_code_flag) then print_module "a.ll" Codegen.the_module;
-        if ((!final_code_flag) || ((not !intermidiate_code_flag) && (not !final_code_flag )))  then (
+        if (!final_code_flag)  then (
+          print_module "a.ll" Codegen.the_module;
+          (* let cmd = "llc -relocation-model=pic -march=x86-64 a.ll -o a.s" in *)
+          let cmd = "llc -o a.s a.ll" in
+          if (Sys.command cmd <> 0) then failwith "Error in llc command";
+        );
+        if ((not !intermidiate_code_flag) && (not !final_code_flag )) then(
           print_module "a.ll" Codegen.the_module;
           (* let cmd = "llc -relocation-model=pic -march=x86-64 a.ll -o a.s" in *)
           let cmd = "llc -o a.s a.ll" in
@@ -79,7 +86,7 @@ let main () =
           (* let cmd = "clang -march=x86-64  a.s ./lib/edsgerlib.a -lm -o a.out" in *)
           let cmd = "clang -o a.out a.s ./lib/edsgerlib.a" in
           if (Sys.command cmd <> 0) then failwith "Error in clang command";
-          let cmd = "find . -name '*.ll' -type f -delete" in
+          let cmd = "find . -name '*.ll' -type f -delete\nfind . -name '*.s' -type f -delete" in
           if (Sys.command cmd <> 0) then failwith "Error in cleaning";
         )
 
