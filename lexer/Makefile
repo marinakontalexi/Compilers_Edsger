@@ -13,12 +13,12 @@ all: main library clean
 # LLVM_FILES=llvm.cmxa llvm_analysis.cmxa	
 
 # with optimizer
-# main: ast.cmx semantic.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx optimizer.cmx main.cmx 
-# 	ocamlopt -o edsger -I $(LLVM_PATH) $(LLVM_FILES) ast.cmx parser.cmx lexer.cmx   symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx optimizer.cmx main.cmx 
+main: ast.cmx semantic.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx optimizer.cmx main.cmx 
+	ocamlopt -o edsger -I $(LLVM_PATH) $(LLVM_FILES) ast.cmx parser.cmx lexer.cmx   symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx optimizer.cmx main.cmx 
 
 # without optimizer
-main: ast.cmx semantic.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
-	ocamlopt -o edsger -I $(LLVM_PATH) $(LLVM_FILES) ast.cmx parser.cmx lexer.cmx symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
+# main: ast.cmx semantic.cmx parser.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
+# 	ocamlopt -o edsger -I $(LLVM_PATH) $(LLVM_FILES) ast.cmx parser.cmx lexer.cmx symbol.cmx semantic.cmx print_fun.cmx address_records.cmx codegen.cmx main.cmx 
 
 main.cmi main.cmx: main.ml 
 	# ocamlc -c main.ml

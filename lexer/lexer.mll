@@ -191,8 +191,8 @@ rule eds_lex = parse
         as op2 { Hashtbl.find operatoreq_table op2 }
     | ['=' '>' '<' '+' '-' '*' '/' '%' '&' '!' '?' ':' ',' '(' ')' '[' ']' '{' '}' ';'] 
         as op { Hashtbl.find operator_table op }
-    | ['\n'] {incr line_number; print_endline "new_line";Lexing.new_line lexbuf; eds_lex lexbuf }
-    | W+ 
+    | [' ' '\t' '\r']+ {eds_lex lexbuf }
+    | '\n' {incr line_number; Lexing.new_line lexbuf; eds_lex lexbuf }
     | "//"[^'\n']+ { eds_lex lexbuf }
     | "/*" { comment lexbuf }
     (* | "/*" ([^'*']+ | '*'+ [^'*' '/'])* '*'+ "/" { eds_lex lexbuf } *)
