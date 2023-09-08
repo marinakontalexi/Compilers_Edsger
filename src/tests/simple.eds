@@ -1,0 +1,14 @@
+#include "stdio.h"
+
+void main() {
+    int a;
+    int i;
+
+    writeString("Enter ID#:");
+    a = readInteger();
+    writeString("Hello there, citizen #");
+    writeInteger(a);
+    writeChar('\n');
+}
+
+

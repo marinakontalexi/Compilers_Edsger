@@ -14,6 +14,7 @@ let builder = builder context
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
 type labeltype = {mutable cont: llbasicblock; mutable break: llbasicblock}
 let labels:(string, labeltype) Hashtbl.t = Hashtbl.create 10
+let named_funcs = Hashtbl.create 10
 
 (* types *)
 let int_type = i16_type context
@@ -41,17 +42,19 @@ let rec ft_to_llvmtype ft =
   | _ -> non_type
 
 let create_argument_allocas the_function pl =
-  let f_help (Param(_,ft,Id(s))) =  (ft_to_llvmtype ft, s) in
+  let f_help (Param(call,ft,Id(s))) =  (ft_to_llvmtype ft, s, call) in
   let args = Array.of_list (List.map f_help pl) in
   Array.iteri (fun i ai ->
-    let (ft, var_name) = args.(i) in
-    let alloca = create_entry_block_alloca the_function ft var_name in
-    (* Store the initial value into the alloca. *)
-    ignore(build_store ai alloca builder);
-
-    (* Add arguments to variable symbol table. *)
-    (* Hashtbl.add named_values var_name alloca; *)
-    ignore(Address_records.variable_push var_name alloca);
+    let (ft, var_name, call) = args.(i) in
+    match call with
+    | Byvalue ->
+      let alloca = create_entry_block_alloca the_function ft var_name in
+      (* Store the initial value into the alloca. *)
+        ignore(build_store ai alloca builder);
+      (* Add arguments to variable symbol table. *)
+      (* Hashtbl.add named_values var_name alloca; *)
+      ignore(Address_records.variable_push var_name alloca)
+    | _ -> ignore(Address_records.variable_push var_name ai)
   ) (params the_function)
 
   let rec codegen_expr (value_type:result_value_type) (expression:expr)  = 
@@ -80,15 +83,19 @@ let create_argument_allocas the_function pl =
     (* -------------- *)
     (* --- TO SEE --- *)
     (* -------------- *)
-    | Fun_call(Id(callee), args) -> 
-      let callee =
-        match lookup_function callee the_module with
-        | Some callee -> callee
-        | None -> raise (Error "unknown function referenced")
-      in
+    | Fun_call(Id(callee_name), args) -> 
+      (match lookup_function callee_name the_module with
+        | Some callee -> 
+          let call_list = 
+            try Hashtbl.find named_funcs (Hashtbl.hash callee_name)
+          with Not_found -> raise (Error "stupid dictionary") 
+        in 
+          let val_list = List.map (fun c -> match c with Byvalue -> RVAL | Byref -> LVAL) call_list in 
+          let args = Array.of_list (List.map2 codegen_expr val_list args) in
+          build_call callee args "" builder 
+        | None -> raise (Error "unknown function referenced"))
       (*THIS SHOULD CHANGE |BYREF->LVAL |BYVALUE->RVAL *)
-      let args = Array.of_list (List.map (codegen_expr RVAL) args) in
-      build_call callee args "" builder 
+      
   
     | Table_call(e1, e2) -> 
       let ptr = codegen_expr RVAL e1 in 
@@ -422,10 +429,13 @@ and codegen_vardecl ft dl =
     ignore(List.map mapf dl) (*in non_type*)
     
 and codegen_fdecl ft name pl = 
-  let pltype = List.map (fun (Param(c, f, _)) -> 
+  let call_list = List.map (fun (Param(c, _, _)) -> c) pl in
+  Hashtbl.add named_funcs (Hashtbl.hash name) call_list;
+  let pltype = List.map (fun (Param(c, f, _)) -> (*ft_to_llvmtype f) pl*)
                           match c with 
                           | Byvalue -> ft_to_llvmtype f
-                          | Byref -> pointer_type (ft_to_llvmtype f)) pl in
+                          | Byref -> pointer_type (ft_to_llvmtype f)) pl
+                        in
   let args_type = Array.of_list pltype in
   let funtype = function_type (ft_to_llvmtype ft) args_type in
   let f =
@@ -448,12 +458,15 @@ and codegen_fdecl ft name pl =
 and codegen_fdef ft id pl dl sl = 
     (* exist_ret_stmt := false; *)
     let (Id(name)) = id in
+    let call_list = List.map (fun (Param(c, _, _)) -> c) pl in
+    Hashtbl.add named_funcs (Hashtbl.hash name) call_list;
     ignore(Address_records.function_add ());
       let the_function = (
-        let pltype = List.map (fun (Param(c, f, _)) -> 
+        let pltype = List.map (fun (Param(c, f, _)) -> (*ft_to_llvmtype f) pl*)
           match c with 
           | Byvalue -> ft_to_llvmtype f
-          | Byref -> pointer_type (ft_to_llvmtype f)) pl in
+          | Byref -> pointer_type (ft_to_llvmtype f)) pl 
+        in
         let args_type = Array.of_list pltype in
         let funtype = function_type (ft_to_llvmtype ft) args_type in
         let f =

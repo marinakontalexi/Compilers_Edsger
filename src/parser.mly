@@ -6,8 +6,7 @@
     let rec expr_to_list expression =
      match expression with 
      | Bin_operation(e1, COMMA, e2) -> (expr_to_list e1) @ (expr_to_list e2)
-     | _ -> [expression]    
-     let line_number = ref 0
+     | _ -> [expression] 
 %}
 
 /* declarations */
@@ -83,7 +82,7 @@ declaration: variable_declaration { $1 }
 ;
 
 variable_declaration: fulltype declarator_list SEMICOLON { Var_declaration($1, List.rev $2) }
-                    | error declarator_list SEMICOLON { raise Parse_error; print_endline("!!Syntax error: Wrong type at line " ^ (string_of_int !line_number)); Var_declaration(Type(Void, 0), [])}
+                    | error declarator_list SEMICOLON { raise Parse_error; (*print_endline("!!Syntax error: Wrong type at line " ^ (string_of_int !line_number)); Var_declaration(Type(Void, 0), [])*)}
 
 ;
 

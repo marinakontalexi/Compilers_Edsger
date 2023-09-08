@@ -250,8 +250,8 @@ let print_semantic_error () =
   match !semantic_errors with
   | [] -> raise End_of_semantic
   | _ ->  
-    let f (s,l) =
-    "Semantic Error: " ^ s ^ " at line: " ^ (string_of_int l) ^ "\n"
+    let f (s,_) =
+    (* "Semantic Error: " ^ s ^ " at line: " ^ (string_of_int l) ^ "\n" *)
+    "Semantic Error: " ^ s ^ "\n"
     in
     raise (Semantic_Error (List.fold_left (^) "" (List.map f (List.rev !semantic_errors))))
-
